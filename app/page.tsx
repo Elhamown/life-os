@@ -73,7 +73,7 @@ export default function Dashboard() {
             >
               <n.icon size={20} />
               {n.label}
-              {n.id === "assistant" && <span className="nav-demo">ديمو</span>}
+              {n.id === "assistant" && <span className="nav-demo">خاص</span>}
             </button>
           ))}
         </nav>
@@ -86,11 +86,9 @@ export default function Dashboard() {
         </button>
         <div className="sidebar-bottom">
           <span className="status-dot" />
-          مساحة تجريبية آمنة
+          {screen === "assistant" ? "المساعد خاص · مسودات فقط" : "مساحة تجريبية آمنة"}
           <p>
-            بيانات توضيحية فقط.
-            <br />
-            غير متصل بـ Notion.
+            {screen === "assistant" ? "الاتصال الخارجي يتطلب إعداد المزوّد وموافقتك." : <>بيانات توضيحية فقط.<br />غير متصل بـ Notion.</>}
           </p>
         </div>
       </aside>
@@ -102,7 +100,9 @@ export default function Dashboard() {
             <strong>{navigation.find((n) => n.id === screen)?.label}</strong>
           </div>
           <div className="header-actions">
-            <span className="demo-indicator">وضع تجريبي</span>
+            <span className="demo-indicator">
+              {screen === "assistant" ? "مساعد خاص · مسودات" : "وضع تجريبي"}
+            </span>
             <button
               className="icon-button"
               aria-label="فتح البحث"
@@ -319,11 +319,19 @@ export default function Dashboard() {
             />
           </div>
           <div hidden={screen !== "assistant"}>
-            <Assistant state={state} dispatch={dispatch} />
+            <Assistant
+              state={state}
+              dispatch={dispatch}
+              active={screen === "assistant"}
+            />
           </div>
           <footer>
             <span>مدار · مساحة لحياة أكثر وضوحًا</span>
-            <span>كل التعديلات محلية ومؤقتة</span>
+            <span>
+              {screen === "assistant"
+                ? "مسودات المساعد محفوظة بشكل خاص"
+                : "تعديلات الديمو محلية ومؤقتة"}
+            </span>
           </footer>
         </main>
       </div>

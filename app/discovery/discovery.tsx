@@ -765,6 +765,10 @@ export default function Discovery() {
                   <span>
                     {
                       {
+                        ai_request: "طلب مساعد AI",
+                        ai_transcribe: "تفريغ صوتي",
+                        ai_decision: "قرار مسودة",
+                        ai_context: "حفظ سياق مؤكد",
                         login: "دخول",
                         logout: "خروج",
                         discovery_start: "بدء الجرد",

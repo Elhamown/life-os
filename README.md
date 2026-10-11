@@ -62,3 +62,9 @@ This redesign is intended for feature-branch review. Do not merge to `main` or d
 The subordinate `/discovery` workflow adds owner authentication, metadata-only read-only Notion inventory, Arabic audit/mapping review and encrypted PostgreSQL configuration. The official SDK is pinned to 5.27.0 and API 2026-03-11. It cannot write to Notion or read page bodies/rows. All Notion AI ingestion is disabled, including Ministry and Health. The existing `/` demo is unchanged.
 
 [Secure setup, permissions, environment variables and exact read-only verification](docs/notion-discovery.md). No secrets are requested in chat. The feature is fail-closed until its private server configuration is supplied; real Notion access was not tested during implementation.
+
+### Private AI assistant and Arabic voice
+
+The existing assistant tab now supports a server-configured real AI provider and Arabic microphone recording/transcription. It requires private owner authentication and explicit external-processing consent. All proposals remain encrypted internal drafts; approval never writes to Notion or changes demo tasks/calendar. Ministry/health destinations and all Notion AI ingestion are excluded. Daily planning uses only owner-confirmed actual records. Provider and hosting usage may incur fees.
+
+See [safe setup, environment variables, privacy boundaries and verification](docs/ai-assistant.md). No live API keys or real workspace data are needed to run the automated tests.

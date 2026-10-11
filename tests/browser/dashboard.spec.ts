@@ -78,18 +78,9 @@ test("proposal edit, approval and rejection change only local records", async ({
     .getByRole("navigation", { name: "التنقل الرئيسي", exact: true })
     .getByRole("button", { name: /المساعد/ })
     .click();
-  await page.getByRole("button", { name: "رتّب أولويات اليوم" }).click();
-  await expect(page.locator(".messages:visible")).toContainText("رد محلي");
-  await page
-    .locator(".proposal:visible")
-    .last()
-    .getByRole("button", { name: "رفض", exact: true })
-    .click();
-  await expect(page.locator(".proposal:visible").last()).toContainText("مرفوض");
-  await page.getByRole("button", { name: "الصوت غير متاح" }).click();
-  await expect(page.getByRole("status")).toContainText(
-    "لم يتم تشغيل الميكروفون",
-  );
+  await expect(page.getByRole("button", { name: "تسجيل صوت عربي" })).toBeDisabled();
+  await expect(page.locator(".conversation:visible")).toContainText("دخول خاص للمساعد");
+  await expect(page.locator(".conversation:visible")).toContainText("مسودات فقط");
 });
 test("theme persistence, all spaces and screenshots", async ({ page }) => {
   mkdirSync(artifacts, { recursive: true });
@@ -190,7 +181,7 @@ test("accessible light and dark screens, dialog, and no external application req
     .analyze();
   expect(dialogResults.violations).toEqual([]);
   await page.keyboard.press("Escape");
-  await page.getByRole("button", { name: "رتّب أولويات اليوم" }).click();
+  await expect(page.getByRole("button", { name: "تسجيل صوت عربي" })).toBeDisabled();
   expect(errors).toEqual([]);
   expect(external).toEqual([]);
 });
@@ -212,8 +203,8 @@ test("global search opens the shared record space and conversation survives navi
   await page
     .getByRole("textbox", { name: "رسالتك للمساعد" })
     .fill("خطة تجريبية");
-  await page.getByRole("button", { name: "إرسال الرسالة" }).click();
+  await expect(page.getByRole("button", { name: "إرسال الرسالة" })).toBeDisabled();
   await nav.getByRole("button", { name: "اليوم", exact: true }).click();
   await nav.getByRole("button", { name: /المساعد/ }).click();
-  await expect(page.locator(".messages:visible")).toContainText("خطة تجريبية");
+  await expect(page.getByRole("textbox", { name: "رسالتك للمساعد" })).toHaveValue("خطة تجريبية");
 });
