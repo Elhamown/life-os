@@ -1,3 +1,5 @@
+Current synchronization phase: site pages require owner authentication before rendering. This discovery integration remains strictly read-only; any approved single-record writes use a separate integration and workflow documented in [Notion sync](./notion-sync.md). No AI ingestion was enabled.
+
 # Private, read-only Notion discovery
 
 This feature extends the existing MADAR app. `/` remains the demo Life OS; `/discovery` is its subordinate private audit workflow. No existing Notion data was accessed while implementing or testing it. No integration, credentials, database, merge, or deployment is created automatically.

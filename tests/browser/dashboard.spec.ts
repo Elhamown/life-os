@@ -78,9 +78,15 @@ test("proposal edit, approval and rejection change only local records", async ({
     .getByRole("navigation", { name: "التنقل الرئيسي", exact: true })
     .getByRole("button", { name: /المساعد/ })
     .click();
-  await expect(page.getByRole("button", { name: "تسجيل صوت عربي" })).toBeDisabled();
-  await expect(page.locator(".conversation:visible")).toContainText("دخول خاص للمساعد");
-  await expect(page.locator(".conversation:visible")).toContainText("مسودات فقط");
+  await expect(
+    page.getByRole("button", { name: "تسجيل صوت عربي" }),
+  ).toBeDisabled();
+  await expect(page.locator(".conversation:visible")).toContainText(
+    "AI غير مفعّل على الخادم",
+  );
+  await expect(page.locator(".conversation:visible")).toContainText(
+    "مسودات فقط",
+  );
 });
 test("theme persistence, all spaces and screenshots", async ({ page }) => {
   mkdirSync(artifacts, { recursive: true });
@@ -181,7 +187,9 @@ test("accessible light and dark screens, dialog, and no external application req
     .analyze();
   expect(dialogResults.violations).toEqual([]);
   await page.keyboard.press("Escape");
-  await expect(page.getByRole("button", { name: "تسجيل صوت عربي" })).toBeDisabled();
+  await expect(
+    page.getByRole("button", { name: "تسجيل صوت عربي" }),
+  ).toBeDisabled();
   expect(errors).toEqual([]);
   expect(external).toEqual([]);
 });
@@ -203,8 +211,12 @@ test("global search opens the shared record space and conversation survives navi
   await page
     .getByRole("textbox", { name: "رسالتك للمساعد" })
     .fill("خطة تجريبية");
-  await expect(page.getByRole("button", { name: "إرسال الرسالة" })).toBeDisabled();
+  await expect(
+    page.getByRole("button", { name: "إرسال الرسالة" }),
+  ).toBeDisabled();
   await nav.getByRole("button", { name: "اليوم", exact: true }).click();
   await nav.getByRole("button", { name: /المساعد/ }).click();
-  await expect(page.getByRole("textbox", { name: "رسالتك للمساعد" })).toHaveValue("خطة تجريبية");
+  await expect(
+    page.getByRole("textbox", { name: "رسالتك للمساعد" }),
+  ).toHaveValue("خطة تجريبية");
 });

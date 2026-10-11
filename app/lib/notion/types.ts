@@ -60,6 +60,11 @@ export type Suggestion = {
 };
 export type DuplicateGroup = { ids: string[]; reason: "schema" | "title" };
 export type AuditEvent =
+  | "sync_scope"
+  | "sync_prepare"
+  | "sync_attempt"
+  | "sync_result"
+  | "sync_review"
   | "ai_request"
   | "ai_transcribe"
   | "ai_decision"

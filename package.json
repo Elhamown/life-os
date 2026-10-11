@@ -12,7 +12,8 @@
     "test": "node --conditions=react-server --import tsx --test tests/*.test.ts",
     "test:e2e": "playwright test",
     "notion:store:init": "node --env-file-if-exists=.env.local scripts/init-private-store.mjs",
-    "notion:password": "node scripts/create-owner-password.mjs"
+    "notion:password": "node scripts/create-owner-password.mjs",
+    "sync:test:live": "node --env-file-if-exists=.env.local scripts/notion-sync-live.mjs"
   },
   "repository": {
     "type": "git",
@@ -41,6 +42,7 @@
   "devDependencies": {
     "@axe-core/playwright": "^4.13.0",
     "@electric-sql/pglite": "^0.5.8",
+    "@electric-sql/pglite-socket": "^0.2.11",
     "@playwright/test": "^1.64.0",
     "@tailwindcss/postcss": "^4.3.3",
     "@types/node": "^26.6.5",

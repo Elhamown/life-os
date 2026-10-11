@@ -49,21 +49,28 @@ test("unconfigured private page fails closed and does not expose a Notion report
   page,
   request,
 }) => {
-  const response = await request.get("/api/notion/report");
+  const response = await request.get("/api/notion/report", {
+    headers: { Cookie: "" },
+  });
   expect([401, 503]).toContain(response.status());
   expect(response.headers()["cache-control"]).toContain("no-store");
   const result = await response.json();
   expect(result.report).toBeUndefined();
   await page.goto("/discovery");
   await expect(
-    page.getByRole("heading", { name: "الإعداد الخاص مطلوب" }),
+    page.getByRole("heading", { name: "اكتشاف Notion الخاص" }),
   ).toBeVisible();
+  const start = page.getByRole("button", { name: "بدء الجرد للقراءة فقط" });
+  // Both missing integration configuration and unavailable private storage fail closed.
+  // The isolated protocol fixture can return the latter during pool reconnection.
   await expect(
-    page.getByRole("button", { name: "بدء الجرد للقراءة فقط" }),
-  ).toHaveCount(0);
+    start.or(page.getByRole("heading", { name: "الإعداد الخاص مطلوب" })),
+  ).toBeVisible();
+  if (await start.count()) await expect(start).toBeDisabled();
   await expect(page.locator(".inventory-item")).toHaveCount(0);
   await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
   const scan = await request.post("/api/notion/start", {
+    headers: { Origin: "http://localhost:3100" },
     data: { acknowledged: true },
   });
   expect([401, 503]).toContain(scan.status());

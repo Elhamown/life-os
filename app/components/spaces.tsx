@@ -134,6 +134,9 @@ export default function Spaces({
           <Link className="quiet-button" href="/discovery" prefetch={false}>
             فتح الاكتشاف الخاص <ArrowLeft size={15} />
           </Link>
+          <Link className="quiet-button" href="/sync" prefetch={false}>
+            مزامنة محكومة بعد المراجعة <ArrowLeft size={15} />
+          </Link>
         </details>
       </>
     );

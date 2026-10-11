@@ -765,6 +765,11 @@ export default function Discovery() {
                   <span>
                     {
                       {
+                        sync_scope: "اعتماد مصدر مزامنة",
+                        sync_prepare: "إعداد حمولة للمراجعة",
+                        sync_attempt: "محاولة مزامنة",
+                        sync_result: "نتيجة مزامنة",
+                        sync_review: "مراجعة مزامنة",
                         ai_request: "طلب مساعد AI",
                         ai_transcribe: "تفريغ صوتي",
                         ai_decision: "قرار مسودة",

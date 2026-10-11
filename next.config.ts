@@ -5,6 +5,8 @@ const config: NextConfig = {
       {
         source: "/",
         headers: [
+          { key: "Cache-Control", value: "private, no-store, max-age=0" },
+          { key: "X-Robots-Tag", value: "noindex, nofollow" },
           {
             key: "Permissions-Policy",
             value: "microphone=(self), camera=(), geolocation=()",
@@ -19,7 +21,7 @@ const config: NextConfig = {
         ],
       },
       {
-        source: "/discovery",
+        source: "/:path(discovery|sync|login)",
         headers: [
           { key: "Cache-Control", value: "private, no-store, max-age=0" },
           { key: "X-Robots-Tag", value: "noindex, nofollow" },

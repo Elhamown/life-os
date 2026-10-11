@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import Link from "next/link";
 import { aiAreas, type AiFields, type AiProposal } from "../lib/ai/model";
 import { spaceName } from "../lib/model";
 export const kindNames = {
@@ -192,6 +193,11 @@ export function AiProposalCard({
             ? "مسودة معتمدة داخليًا · لم تُرسل إلى Notion"
             : "مرفوض"}
         </p>
+      )}
+      {proposal.status === "approved" && (
+        <Link className="button" href="/sync" prefetch={false}>
+          مراجعة مزامنة منفصلة إلى Notion
+        </Link>
       )}
     </article>
   );

@@ -1376,3 +1376,19 @@ code {
 .ai-proposal fieldset { min-width: 0; border: 0; padding: 0; }
 .voice-state { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; color: var(--ink); background: var(--surface); }
 .ai-proposal p, .transcript, .message { overflow-wrap: anywhere; }
+
+.login-shell { max-width: 480px; margin: 8vh auto; padding: 24px; }
+.login-shell label, .sync-shell label { display: grid; gap: 6px; margin-block: 12px; }
+.login-shell input, .sync-shell input:not([type="checkbox"]), .sync-shell select, .sync-shell textarea { width: 100%; min-width: 0; border: 1px solid var(--line); border-radius: var(--radius-small); padding: 10px; background: var(--surface); color: var(--ink); }
+.sync-shell { max-width: 1050px; margin: auto; padding: 24px 16px 60px; }
+.sync-shell h1 { font-size: clamp(24px, 4vw, 32px); }
+.sync-shell p { margin-block: 10px; }
+.sync-panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; margin-block: 18px; }
+.sync-overview { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-block: 20px; }
+.sync-shell .ai-consent { display: flex; gap: 10px; align-items: flex-start; }
+.sync-shell code { overflow-wrap: anywhere; font-size: .8rem; direction: ltr; unicode-bidi: isolate; }
+.sync-shell pre { overflow: auto; max-height: 350px; background: var(--surface-soft); border-radius: 8px; padding: 12px; font-size: .8rem; text-align: left; }
+.sync-shell details { margin-block: 12px; }
+.sync-shell summary { cursor: pointer; font-weight: 600; }
+.sync-shell .button { margin-inline-end: 8px; margin-block: 6px; }
+.sync-shell li { overflow-wrap: anywhere; }
