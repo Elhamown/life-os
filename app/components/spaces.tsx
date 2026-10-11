@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { useState } from "react";
 import {
   ArrowLeft,
@@ -126,12 +127,13 @@ export default function Spaces({
             اكتشاف Notion <span className="tag">غير متصل</span>
           </summary>
           <p>
-            في مرحلة لاحقة، يساعدك الاكتشاف على فهم قواعد بياناتك وروابطها. هذه
-            معاينة فقط؛ لا نقرأ أو نغيّر أي بيانات Notion.
+            راجع المصادر المتاحة للتكامل، وافحص مخططاتها، ثم اعتمد ربطها
+            بمساحاتك. يتطلب الوصول الحقيقي تسجيل دخول خاص، ولا يغيّر أي بيانات
+            Notion.
           </p>
-          <div className="discovery-preview">
-            تصوّر تجريبي: مهام ← مشاريع ← مساحات
-          </div>
+          <Link className="quiet-button" href="/discovery" prefetch={false}>
+            فتح الاكتشاف الخاص <ArrowLeft size={15} />
+          </Link>
         </details>
       </>
     );
