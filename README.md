@@ -19,7 +19,7 @@ npm run build
 npm run start
 ```
 
-`npm test` runs 36 demo-model, read-only SDK, authorization and SQL-store tests. TypeScript strict mode is enabled. TypeScript 5.9 is used because the installed typescript-eslint parser does not support TypeScript 7.
+`npm test` runs 37 demo-model, read-only SDK, authorization and SQL-store tests. TypeScript strict mode is enabled. TypeScript 5.9 is used because the installed typescript-eslint parser does not support TypeScript 7.
 
 Browser tests run against the production build:
 

@@ -59,7 +59,7 @@ function sourceMetadata(source: DataSourceObjectResponse): InventoryItem {
               dataSourceId: p.relation.data_source_id || null,
               databaseId: p.relation.database_id || null,
               syncedPropertyId:
-                p.relation.type === "dual_property"
+                "dual_property" in p.relation
                   ? p.relation.dual_property.synced_property_id
                   : null,
             },

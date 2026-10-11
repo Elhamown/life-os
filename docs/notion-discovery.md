@@ -120,7 +120,7 @@ MADAR_CHROMIUM_PATH=/usr/bin/chromium npm run test:e2e
 
 Use `npx playwright install chromium` and omit `MADAR_CHROMIUM_PATH` if no system Chromium is installed. Browser tests run the production build on port 3100. Do not run a development server/build concurrently against the same `.next` directory.
 
-Validation in this branch: lint, strict typecheck, **36 unit/security/SQL tests**, and production build pass. Browser verification covers the seven existing demo tests plus two discovery tests.
+Validation in this branch: lint, strict typecheck, **37 unit/security/SQL tests**, and production build pass. Browser verification covers the seven existing demo tests plus two discovery tests.
 
 The automated proof has three independent layers:
 

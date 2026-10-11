@@ -397,3 +397,23 @@ test("page-size overflow at the inventory boundary never exceeds the metadata ca
   assert.equal(next.status, "partial");
   assert.ok(next.warnings.some((w) => w.code === "LIMIT_REACHED"));
 });
+
+test("relation IDs survive a schema that omits the optional relation discriminator", async () => {
+  const mock = mockNotion();
+  mock.client.search = async () => search([source()]);
+  mock.client.retrieveSource = async () => {
+    const value = source();
+    const property = value.properties.Projects;
+    if (property.type === "relation") delete property.relation.type;
+    return value;
+  };
+  mock.client.retrieveDatabase = async () => database([1]);
+  let job = startDiscovery();
+  while (job.status === "running") job = await discoveryStep(job, mock.client);
+  assert.equal(
+    job.items
+      .find((i) => i.kind === "data_source")
+      ?.schema.find((p) => p.type === "relation")?.relation?.syncedPropertyId,
+    "related",
+  );
+});
