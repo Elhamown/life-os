@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { Mic, Send, Sparkles } from "lucide-react";
-import { type Action, type State, spaceName } from "../lib/model";
+import { type Action, type State, spaceName, todayDate } from "../lib/model";
 import { ProposalCard } from "./shared";
 import {
   aiAreas,
@@ -46,6 +46,9 @@ export default function Assistant({
   active: boolean;
 }) {
   const epoch = useRef(0);
+  const historyRevision = useRef(0);
+  const [readAloud, setReadAloud] = useState(false);
+  const [speechError, setSpeechError] = useState("");
   const [input, setInput] = useState("");
   const [password, setPassword] = useState("");
   const [auth, setAuth] = useState(false);
@@ -141,6 +144,23 @@ export default function Assistant({
           if (live) {
             setStatus(data);
             setItems(data.context);
+            try {
+              const historyResponse = await fetch(
+                `/api/conversation?spaceId=${area}`,
+                { cache: "no-store", signal: controller.signal },
+              );
+              if (!historyResponse.ok) throw Error();
+              const history = await historyResponse.json();
+              if (live) {
+                historyRevision.current = history.revision;
+                setMessages(history.messages);
+              }
+            } catch {
+              if (live)
+                setError(
+                  "تعذّر استعادة سجل المحادثة. أعد تحميل الصفحة قبل متابعة المحادثة؛ لم تُحذف رسائلك.",
+                );
+            }
           }
         } else if (!session.authenticated) {
           epoch.current++;
@@ -181,7 +201,11 @@ export default function Assistant({
     };
   }, [area]);
   useEffect(() => {
-    if (!auth || !active) voice.cancel(); // stop capture when session becomes unavailable
+    if (!auth || !active) {
+      voice.cancel();
+      if (typeof window !== "undefined" && "speechSynthesis" in window)
+        window.speechSynthesis.cancel();
+    } // stop capture when session becomes unavailable
     // The cleanup operation intentionally depends only on authentication and navigation.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [auth, active]);
@@ -202,7 +226,32 @@ export default function Assistant({
       setPassword("");
     }
   }
-  async function send(planning = false) {
+  function speak(text: string) {
+    setSpeechError("");
+    if (!("speechSynthesis" in window)) {
+      setSpeechError(
+        "المتصفح لا يدعم قراءة الردود. يمكنك متابعة المحادثة نصياً.",
+      );
+      return;
+    }
+    const arabicVoice = window.speechSynthesis
+      .getVoices()
+      .find((v) => v.lang.toLowerCase().startsWith("ar"));
+    if (!arabicVoice) {
+      setSpeechError(
+        "لا يوجد صوت عربي متاح على هذا الجهاز. المحادثة النصية متاحة.",
+      );
+      return;
+    }
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = arabicVoice.lang;
+    utterance.voice = arabicVoice;
+    utterance.onerror = () =>
+      setSpeechError("تعذّرت قراءة الرد. حاول مجدداً أو تابع نصياً.");
+    window.speechSynthesis.speak(utterance);
+  }
+  async function send(planning = false, drafting = false) {
     if (!input.trim() && !planning) return;
     setBusy(true);
     setError("");
@@ -210,6 +259,20 @@ export default function Assistant({
       const message = planning
         ? "رتّب أولويات اليوم من السياق المؤكد فقط"
         : input;
+      if (!planning && !drafting) {
+        const history = await request("/api/conversation", {
+          message,
+          spaceId: area,
+          consent,
+          revision: historyRevision.current,
+          requestId: crypto.randomUUID(),
+        });
+        historyRevision.current = history.revision;
+        setMessages(history.messages);
+        setInput("");
+        if (readAloud) speak(history.messages.at(-1)?.text ?? "");
+        return;
+      }
       const result = await request("/api/ai/propose", {
         message,
         spaceId: area,
@@ -412,6 +475,29 @@ export default function Assistant({
             )}
             <details className="ai-context">
               <summary>سياق التخطيط المؤكد · {items.length} سجل</summary>
+              <button
+                className="button"
+                disabled={busy}
+                onClick={() => {
+                  setItems(
+                    state.tasks
+                      .filter((t) => t.spaceId === area && !t.done)
+                      .slice(0, 50)
+                      .map((t) => ({
+                        id: t.id,
+                        title: t.title,
+                        spaceId: area,
+                        kind: "task",
+                        date: t.date,
+                        time: null,
+                        durationMinutes: null,
+                      })),
+                  );
+                  setContextConsent(false);
+                }}
+              >
+                اختيار مهام هذه المساحة للمراجعة قبل مشاركة السياق
+              </button>
               <p className="helper">
                 أدخل مهامًا ومواعيد فعلية مخوّلًا بمشاركتها. لا يوجد اتصال حي
                 بتقويمك أو مهام Notion. سيُرسل هذا السياق مع الرسائل التالية بعد
@@ -564,11 +650,33 @@ export default function Assistant({
             </details>
           </>
         )}
+        <label className="ai-consent">
+          <input
+            type="checkbox"
+            checked={readAloud}
+            onChange={(e) => setReadAloud(e.target.checked)}
+          />
+          قراءة الردود بصوت عربي عند توفر صوت على الجهاز
+        </label>
+        <button
+          className="quiet-button"
+          onClick={() => {
+            if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+          }}
+        >
+          إيقاف القراءة
+        </button>
+        {speechError && <p role="status">{speechError}</p>}
         <div className="messages" aria-live="polite">
           {messages.map((m, i) => (
             <article key={i} className={`message ${m.role}`}>
               <small>{m.role === "user" ? "أنت" : "مدار"}</small>
               <p>{m.text}</p>
+              {m.role === "assistant" && (
+                <button className="quiet-button" onClick={() => speak(m.text)}>
+                  قراءة الرد
+                </button>
+              )}
             </article>
           ))}
         </div>
@@ -630,6 +738,13 @@ export default function Assistant({
             </p>
           </section>
         )}
+        <button
+          className="button"
+          disabled={!enabled || !input.trim()}
+          onClick={() => void send(false, true)}
+        >
+          صياغة مسودات من الرسالة للمراجعة
+        </button>
         <form
           className="composer"
           onSubmit={(e) => {
@@ -639,7 +754,7 @@ export default function Assistant({
         >
           <textarea
             aria-label="رسالتك للمساعد"
-            placeholder={`مثال: أنشئ ملاحظة في ${spaceName(area)} بعنوان أفكاري`}
+            placeholder="عندي بكرا شغل كتير، خلينا نرتّب يومي…"
             maxLength={4000}
             rows={2}
             value={input}
@@ -666,7 +781,7 @@ export default function Assistant({
           </div>
         </form>
         <p className="helper">
-          اعتماد المقترح يحفظ مسودة داخل MADAR فقط. لا ينشئ مهمة في لوحة الديمو
+          اعتماد المقترح يحفظ مسودة داخل MADAR فقط. لا ينشئ مهمة في مساحة العمل
           أو تقويمًا أو سجل Notion.
         </p>
       </section>
@@ -683,6 +798,52 @@ export default function Assistant({
             proposal={p}
             disabled={busy}
             onDecide={decide}
+            onAdd={(proposal) => {
+              const id = `ai-${proposal.id}`;
+              if (
+                state.tasks.some((t) => t.id === id) ||
+                state.notes.some((n) => n.id === id) ||
+                state.events?.some((e) => e.id === id)
+              ) {
+                setError("هذا المقترح موجود بالفعل في مساحة العمل.");
+                return;
+              }
+              if (
+                !window.confirm(
+                  "إضافة عنوان هذا المقترح وموعده إلى مدار؟ التفاصيل الكاملة تبقى في المسودة، ولن يتغيّر Notion.",
+                )
+              )
+                return;
+              if (proposal.kind === "event" || proposal.kind === "study") {
+                if (
+                  !proposal.date ||
+                  !proposal.time ||
+                  !proposal.durationMinutes
+                ) {
+                  setError("أكمل موعد ووقت ومدة المسودة أولاً.");
+                  return;
+                }
+                dispatch({
+                  type: "event",
+                  event: {
+                    id,
+                    title: proposal.title,
+                    spaceId: proposal.spaceId,
+                    date: proposal.date,
+                    time: proposal.time,
+                    duration: `${proposal.durationMinutes} دقيقة`,
+                  },
+                });
+              } else
+                dispatch({
+                  type: "capture",
+                  id,
+                  title: proposal.title,
+                  spaceId: proposal.spaceId,
+                  kind: proposal.kind === "note" ? "note" : "task",
+                  date: proposal.date ?? todayDate(),
+                });
+            }}
           />
         ))}
         <details>
