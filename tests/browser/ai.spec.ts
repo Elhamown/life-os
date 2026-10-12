@@ -43,7 +43,7 @@ test("authenticated assistant: structured drafts, explicit edit/approval and gro
   await page.route("**/api/private/session", (r) =>
     r.fulfill({ json: { authenticated: true, ready: true } }),
   );
-  await page.route("**/api/ai/status", (r) =>
+  await page.route("**/api/ai/status**", (r) =>
     r.fulfill({
       json: {
         configured: true,
@@ -120,7 +120,9 @@ test("authenticated assistant: structured drafts, explicit edit/approval and gro
   await page.getByLabel("عنوان السجل المؤكد").fill(item.title);
   await page.getByLabel("تاريخ السجل المؤكد").fill(item.date);
   await page.getByRole("button", { name: "أضف للسياق المراد حفظه" }).click();
-  await expect(page.getByRole("button", { name: "تسجيل صوت عربي" })).toBeDisabled();
+  await expect(
+    page.getByRole("button", { name: "تسجيل صوت عربي" }),
+  ).toBeDisabled();
   await expect(
     page.getByRole("button", { name: "حفظ السياق المؤكد" }),
   ).toBeDisabled();
@@ -129,7 +131,9 @@ test("authenticated assistant: structured drafts, explicit edit/approval and gro
   await expect(page.locator(".messages")).toContainText(
     "حُفظ سياق التخطيط الداخلي",
   );
-  await expect(page.getByRole("button", { name: "تسجيل صوت عربي" })).toBeEnabled();
+  await expect(
+    page.getByRole("button", { name: "تسجيل صوت عربي" }),
+  ).toBeEnabled();
   await page.getByRole("button", { name: "رتّب أولويات اليوم" }).click();
   await expect(
     page.getByRole("heading", { name: "خطة مقترحة من سجلات مؤكدة" }),
@@ -179,7 +183,7 @@ test("Arabic microphone: real browser recording, stop, transcription edit, submi
   await page.route("**/api/private/session", (r) =>
     r.fulfill({ json: { authenticated: true, ready: true } }),
   );
-  await page.route("**/api/ai/status", (r) =>
+  await page.route("**/api/ai/status**", (r) =>
     r.fulfill({
       json: {
         configured: true,
@@ -271,7 +275,7 @@ test("denied microphone and provider errors show safe recoverable feedback", asy
   await page.route("**/api/private/session", (r) =>
     r.fulfill({ json: { authenticated: true, ready: true } }),
   );
-  await page.route("**/api/ai/status", (r) =>
+  await page.route("**/api/ai/status**", (r) =>
     r.fulfill({
       json: {
         configured: true,
@@ -308,7 +312,7 @@ test("expired authentication clears private drafts and context instead of retain
   await page.route("**/api/private/session", (r) =>
     r.fulfill({ json: { authenticated: true, ready: true } }),
   );
-  await page.route("**/api/ai/status", (r) =>
+  await page.route("**/api/ai/status**", (r) =>
     r.fulfill({
       json: {
         configured: true,

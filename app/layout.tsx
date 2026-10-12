@@ -3,6 +3,8 @@ import "@fontsource/tajawal/arabic-400.css";
 import "@fontsource/tajawal/arabic-500.css";
 import "@fontsource/tajawal/arabic-700.css";
 import "./globals.css";
+import { neoSansCss } from "./lib/neo-sans";
+import OwnerSessionGuard from "./components/owner-session-guard";
 export const metadata: Metadata = {
   title: "مدار | نظام حياتك",
   description: "مساحة عربية لتنظيم يومك ومشاريعك وحياتك",
@@ -13,6 +15,9 @@ export default function RootLayout({
   return (
     <html lang="ar" dir="rtl" suppressHydrationWarning>
       <head>
+        {process.env.MADAR_NEO_SANS_ENABLED === "1" && (
+          <style>{neoSansCss}</style>
+        )}
         <script
           dangerouslySetInnerHTML={{
             __html:
@@ -20,7 +25,10 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body>{children}</body>
+      <body>
+        <OwnerSessionGuard />
+        {children}
+      </body>
     </html>
   );
 }

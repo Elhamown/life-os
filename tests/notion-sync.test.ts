@@ -14,11 +14,106 @@ import { syncTransport } from "../app/lib/sync/gateway";
 import { NOTION_API_VERSION } from "../app/lib/notion/gateway";
 import { hash, schemaHash, syncConfig } from "../app/lib/sync/validation";
 import type { SyncLedger } from "../app/lib/sync/types";
+import type { DiscoveryJob, Mapping } from "../app/lib/notion/types";
 const writes = (f: Awaited<ReturnType<typeof syncFixture>>) =>
   f.requests.filter(
     (r) =>
       r.method === "PATCH" || (r.method === "POST" && r.path === "/v1/pages"),
   );
+test("uncertain recovery survives scope re-approval and re-audit without renewing write consent", async () => {
+  const f = await syncFixture();
+  await f.scope();
+  const { action } = await f.prepare();
+  f.setUnknownCreate();
+  const uncertain = (await f.approve(action)).action;
+  const job = (await f.store.get<DiscoveryJob>("discovery"))!;
+  job.id = "new-read-only-report";
+  job.revision++;
+  await f.store.put("discovery", job);
+  const mappings = (await f.store.get<Mapping[]>("mappings"))!;
+  await f.store.put(
+    "mappings",
+    mappings.map((m) => ({ ...m, reportId: job.id })),
+  );
+  const ledger = (await f.store.get<SyncLedger>("sync"))!;
+  ledger.scopes[0] = {
+    ...ledger.scopes[0],
+    reportId: job.id,
+    revision: job.revision,
+    approvedAt: "2026-10-12T10:00:00Z",
+  };
+  await f.store.put("sync", ledger);
+  assert.equal(
+    (
+      await f.invoke("retry", {
+        id: action.id,
+        version: uncertain.version,
+        digest: action.digest,
+        approved: true,
+      })
+    ).status,
+    409,
+  );
+  f.context.sync.enabled = false; // emergency write-off still permits scoped read reconciliation
+  const recovered = await f.json("recover", {
+    id: action.id,
+    version: uncertain.version,
+    approved: true,
+  });
+  assert.equal(recovered.action.state, "succeeded");
+  assert.equal(recovered.action.pageId, [...f.pages.keys()][0]);
+  assert.equal(writes(f).length, 1);
+});
+test("a full uncertain journal retains all history and permits one terminal read-only reconciliation", async () => {
+  const f = await syncFixture();
+  await f.scope();
+  const { action } = await f.prepare();
+  f.setUnknownCreate();
+  const uncertain = (await f.approve(action)).action;
+  const ledger = (await f.store.get<SyncLedger>("sync"))!;
+  const stored = ledger.actions.find((a) => a.id === action.id)!;
+  while (stored.history.length < 40)
+    stored.history.push({
+      at: "2026-10-12T10:00:00Z",
+      event: "review_pending",
+      digest: stored.digest,
+    });
+  const previous = structuredClone(stored.history);
+  await f.store.put("sync", ledger);
+  const recovered = await f.json("recover", {
+    id: action.id,
+    version: uncertain.version,
+    approved: true,
+  });
+  assert.equal(recovered.action.state, "succeeded");
+  assert.equal(recovered.action.history.length, 41);
+  assert.deepEqual(recovered.action.history.slice(0, 40), previous);
+  assert.equal(writes(f).length, 1);
+});
+test("recovery rejects removed allowlists, revoked mappings and changed property scopes", async () => {
+  for (const change of ["allowlist", "mapping", "columns", "area"] as const) {
+    const f = await syncFixture();
+    await f.scope();
+    const { action } = await f.prepare();
+    f.setUnknownCreate();
+    const uncertain = (await f.approve(action)).action;
+    if (change === "allowlist") f.context.sync.testIds = [];
+    else if (change === "mapping") await f.store.put("mappings", []);
+    else {
+      const ledger = (await f.store.get<SyncLedger>("sync"))!;
+      if (change === "columns") ledger.scopes[0].columns.title = "different";
+      else ledger.scopes[0].area = "ministry";
+      await f.store.put("sync", ledger);
+    }
+    const response = await f.invoke("recover", {
+      id: action.id,
+      version: uncertain.version,
+      approved: true,
+    });
+    assert.ok([403, 409].includes(response.status));
+    assert.equal(writes(f).length, 1);
+  }
+});
 test("sync rejects unauthenticated, cross-origin, unapproved scope and destructive operations", async () => {
   const f = await syncFixture();
   for (const action of [

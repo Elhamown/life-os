@@ -9,8 +9,8 @@ import {
 } from "../private/api";
 import { PrivateError } from "../private/errors";
 import type { DiscoveryJob, Mapping } from "../notion/types";
-import type { AiProposal } from "../ai/model";
 import { allowedArea } from "../ai/model";
+import { ownerProposals } from "../ai/scoped-store";
 import { createSyncGateway, SyncRemoteError } from "./gateway";
 import {
   fail,
@@ -43,13 +43,15 @@ export type SyncContext = PrivateContext & {
     approved: boolean,
   ) => SyncGateway;
 };
-export function withSync(context: PrivateContext): SyncContext {
-  const sync = syncConfig();
+export function withSync(
+  context: PrivateContext,
+  sync = syncConfig(),
+): SyncContext {
   return {
     ...context,
     sync,
     gateway: (scope, action, approved) => {
-      if (!sync.enabled || !sync.token)
+      if (!sync.token || (approved && !sync.enabled))
         throw new PrivateError("SYNC_SETUP_REQUIRED", 503);
       return createSyncGateway(sync.token, scope, action, approved);
     },
@@ -57,7 +59,14 @@ export function withSync(context: PrivateContext): SyncContext {
 }
 const now = () => new Date().toISOString();
 function event(action: SyncAction, name: string, payload = false) {
-  if (action.history.length >= 40) fail("SYNC_HISTORY_LIMIT", 409);
+  // Preserve every entry. Reserve one terminal reconciliation/conflict slot so
+  // a full journal can never force a blind replay of an uncertain remote write.
+  const terminalReview = ["reconciled", "conflict"].includes(name);
+  if (
+    action.history.length >= 40 &&
+    (!terminalReview || action.history.length >= 41)
+  )
+    fail("SYNC_HISTORY_LIMIT", 409);
   action.history.push({
     at: now(),
     event: name,
@@ -152,14 +161,15 @@ async function authorizeScope(
   scope: SourceScope,
   readOnly = false,
 ) {
-  if (!context.sync.enabled) fail("SYNC_SETUP_REQUIRED", 503);
+  if (!context.sync.token || (!readOnly && !context.sync.enabled))
+    fail("SYNC_SETUP_REQUIRED", 503);
   const { job, sources } = await auditedSources(context);
   const current = sources.find((s) => s.id === scope.sourceId);
   if (
     !job ||
     !current ||
-    scope.reportId !== job.id ||
-    scope.revision !== job.revision ||
+    (!readOnly &&
+      (scope.reportId !== job.id || scope.revision !== job.revision)) ||
     scope.area !== current.area
   )
     fail("SYNC_AUDIT_OR_MAPPING_CHANGED", 409);
@@ -278,9 +288,9 @@ export async function syncApi(
             ...s,
             mode: context.sync.testIds.includes(s.id) ? "test" : "existing",
           })),
-        aiProposals: (
-          (await context.store.get<AiProposal[]>("ai-proposals")) ?? []
-        ).filter((p) => p.status === "approved"),
+        aiProposals: (await ownerProposals(context.store)).filter(
+          (p) => p.status === "approved",
+        ),
       });
     }
     if (
@@ -377,9 +387,9 @@ export async function syncApi(
       let proposalId: string | null = null;
       if (origin === "ai") {
         proposalId = uuid(body.proposalId);
-        const proposal = (
-          (await context.store.get<AiProposal[]>("ai-proposals")) ?? []
-        ).find((p) => p.id === proposalId && p.status === "approved");
+        const proposal = (await ownerProposals(context.store)).find(
+          (p) => p.id === proposalId && p.status === "approved",
+        );
         if (
           !proposal ||
           !allowedArea(scope.area) ||
@@ -534,7 +544,22 @@ export async function syncApi(
       return response({ action: active, ledger });
     }
     const scope = ledger.scopes.find((s) => s.sourceId === active!.sourceId);
-    if (!scope || !same(scope, active.scope)) fail("SYNC_SCOPE_CHANGED", 409);
+    // Recovery is a new owner-approved READ, never a renewal of the old write grant.
+    // Re-audit/re-approval may change report IDs and approval timestamps. Keep the
+    // original exact source, area, mode and property IDs, and current allowlist/mapping.
+    const recoveryIdentity = (value: SourceScope) => ({
+      sourceId: value.sourceId,
+      area: value.area,
+      mode: value.mode,
+      columns: value.columns,
+    });
+    if (
+      !scope ||
+      (name === "recover"
+        ? !same(recoveryIdentity(scope), recoveryIdentity(active.scope))
+        : !same(scope, active.scope))
+    )
+      fail("SYNC_SCOPE_CHANGED", 409);
     await authorizeScope(context, ledger, scope, name === "recover");
     if (
       name !== "recover" &&
@@ -591,12 +616,14 @@ export async function syncApi(
       )
         fail("SYNC_RECOVERY_REQUIRED", 409);
       await context.store.audit("sync_review", "ok");
-      const remote = context.gateway(scope, active, false);
-      if (schemaHash(await remote.schema()) !== scope.schemaHash)
-        fail("SYNC_SCHEMA_CHANGED", 409);
+      const readScope = active.scope;
+      const remote = context.gateway(readScope, active, false);
+      // Only the previously reviewed properties are needed for recovery. Verify
+      // their IDs/types even if an unrelated field or source label changed.
+      validateColumns(readScope.columns, await remote.schema());
       if (body.pageId) {
         const p = await context
-          .gateway(scope, { ...active, pageId: uuid(body.pageId) }, false)
+          .gateway(readScope, { ...active, pageId: uuid(body.pageId) }, false)
           .page(uuid(body.pageId));
         if (stableValue(p, scope.columns.recordId) !== active.recordId)
           fail("SYNC_BINDING_CONFLICT", 409);
@@ -650,9 +677,9 @@ export async function syncApi(
       );
     if (active.attempts >= 5) fail("SYNC_ATTEMPT_LIMIT", 409);
     if (active.origin === "ai") {
-      const proposal = (
-        (await context.store.get<AiProposal[]>("ai-proposals")) ?? []
-      ).find((p) => p.id === active!.proposalId && p.status === "approved");
+      const proposal = (await ownerProposals(context.store)).find(
+        (p) => p.id === active!.proposalId && p.status === "approved",
+      );
       if (
         !proposal ||
         !allowedArea(scope.area) ||

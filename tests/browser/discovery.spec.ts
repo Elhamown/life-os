@@ -66,7 +66,9 @@ test("unconfigured private page fails closed and does not expose a Notion report
   await expect(
     start.or(page.getByRole("heading", { name: "الإعداد الخاص مطلوب" })),
   ).toBeVisible();
-  if (await start.count()) await expect(start).toBeDisabled();
+  // The page may transition from disabled controls to a fail-closed storage error.
+  // Neither state may offer an enabled scan, even during that transition.
+  await expect(start.and(page.locator(":enabled"))).toHaveCount(0);
   await expect(page.locator(".inventory-item")).toHaveCount(0);
   await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
   const scan = await request.post("/api/notion/start", {
@@ -85,7 +87,7 @@ test("unconfigured private page fails closed and does not expose a Notion report
 test("authenticated report UI requires explicit mapping approval and clears private data on logout (mock API)", async ({
   page,
 }) => {
-  let authenticated = false;
+  let authenticated = true; // Server page already verified the real fixture owner cookie.
   let saved: unknown[] = [];
   let savedCalls = 0;
   await page.route("**/api/private/**", async (route) => {
@@ -127,10 +129,6 @@ test("authenticated report UI requires explicit mapping approval and clears priv
     return route.fulfill({ json: { report } });
   });
   await page.goto("/discovery");
-  await page
-    .getByLabel("كلمة المرور الخاصة")
-    .fill("fixture-not-a-real-password");
-  await page.getByRole("button", { name: "دخول خاص" }).click();
   await expect(
     page.getByRole("heading", { name: "تقرير الجرد المرئي" }),
   ).toBeVisible();

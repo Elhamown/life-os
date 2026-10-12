@@ -6,3 +6,4 @@ out/
 !.env.example
 test-results/
 playwright-report/
+public/fonts/neo-sans-arabic/*.woff2

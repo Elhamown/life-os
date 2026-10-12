@@ -1,6 +1,8 @@
 # MADAR: private AI assistant and Arabic voice
 
-Current sync phase: the whole site now requires server-side private authentication. An approved AI draft can be selected in the [separate controlled Notion sync workflow](./notion-sync.md), where a second exact target/payload approval is mandatory. Assistant routes themselves remain draft-only. Current complete suite: 73 server tests and 16 browser tests.
+Single-owner phase: AI context and drafts now use separate encrypted slots per area, with filtered legacy reads and no automatic migration. Status, context and decisions are scoped; model output cannot cross the selected destination. See [Arabic owner policy](./single-owner.md).
+
+Current sync phase: the whole site now requires server-side private authentication. An approved AI draft can be selected in the [separate controlled Notion sync workflow](./notion-sync.md), where a second exact target/payload approval is mandatory. Assistant routes themselves remain draft-only. Current complete suite: 85 server tests and 20 browser tests.
 
 This extends the existing assistant tab on `/`. It preserves the demo dashboard and read-only Notion discovery. No production deployment or external AI/Notion call was performed during implementation. The provider adapter is real; automated responses/transcripts and screenshots use fixtures. You must configure and verify your chosen provider before claiming live service availability.
 
@@ -17,7 +19,7 @@ This extends the existing assistant tab on `/`. It preserves the demo dashboard 
 
 ## Privacy boundary
 
-Initial consent is unchecked; deployment acknowledgement and request-specific consent are both required. The checkbox explains transmission to an external service, including the entire saved authorized context for text requests and the recording for transcription. Ministry and health context cannot be included by changing a client payload; stored context is validated again before any external request.
+Initial consent is unchecked; deployment acknowledgement and request-specific consent are both required. The checkbox explains transmission to an external service, including only the saved authorized context in the selected area for text requests and the recording for transcription. Ministry and health context cannot be included by changing a client payload; stored context is validated again before any external request.
 
 **Area exclusion is not automatic detection of sensitive prose.** Do not paste or dictate ministry/health details into another area. The UI explicitly asks for content without those details. There is no DLP classifier or local transcription service. The server cannot reliably infer sensitivity of unrestricted Arabic text; explicitly approved free text/audio is sent as supplied. Review your provider's processing, retention, region and contractual terms first. `store:false` for chat is not a promise of zero provider retention, and the transcription API may have different retention rules.
 

@@ -1,5 +1,7 @@
 # MADAR redesign review
 
+Historical Phase 1 review. For the current navy/red branding, real optional AI/voice adapters and owner-only site, see [single-owner guide](./single-owner.md). The unavailable services below describe this earlier snapshot.
+
 The existing `/` dashboard now presents a simpler Arabic-first personal operating system rather than a collection of unrelated task cards. The navy/lavender design system supports light and dark themes, bundled Tajawal typography, and mobile bottom navigation with global quick capture.
 
 ## Functional in this demo

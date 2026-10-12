@@ -56,7 +56,8 @@ export function getConfig(
 export function assertOrigin(request: Request, config: PrivateConfig) {
   if (
     request.headers.get("origin") !== config.origin ||
-    request.headers.get("sec-fetch-site") === "cross-site"
+    (request.headers.has("sec-fetch-site") &&
+      !["same-origin", "none"].includes(request.headers.get("sec-fetch-site")!))
   )
     throw new PrivateError("ORIGIN_DENIED", 403);
 }

@@ -14,7 +14,13 @@ import {
   type AiConfig,
   type AiProvider,
 } from "./provider";
-import { allowedArea, type AiProposal, type AuthorizedItem } from "./model";
+import { allowedArea, type AiProposal } from "./model";
+import {
+  aiSlot,
+  requireAiArea,
+  scopedContext,
+  scopedProposals,
+} from "./scoped-store";
 import {
   authorizedItems,
   fields,
@@ -100,18 +106,21 @@ export async function aiApi(
   let lock: string | null = null;
   try {
     await requirePrivateSession(request, context);
-    if (request.method === "GET" && action === "status")
+    if (request.method === "GET" && action === "status") {
+      const area = requireAiArea(
+        new URL(request.url).searchParams.get("spaceId") ?? "life",
+      );
       return response({
+        spaceId: area,
         configured: context.ai.enabled,
         mode: "draft-only",
         provider: context.ai.enabled ? new URL(context.ai.base).hostname : null,
         model: context.ai.model,
         transcriptionModel: context.ai.transcriptionModel,
-        context:
-          (await context.store.get<AuthorizedItem[]>("ai-context")) ?? [],
-        proposals:
-          (await context.store.get<AiProposal[]>("ai-proposals")) ?? [],
+        context: await scopedContext(context.store, area),
+        proposals: await scopedProposals(context.store, area),
       });
+    }
     if (
       request.method !== "POST" ||
       !["propose", "transcribe", "decision", "context"].includes(action)
@@ -137,9 +146,8 @@ export async function aiApi(
       });
     }
     const body = await readJson(request);
-    const source = authorizedItems(
-      (await context.store.get<AuthorizedItem[]>("ai-context")) ?? [],
-    );
+    const area = requireAiArea(body.spaceId);
+    const source = await scopedContext(context.store, area);
     if (action === "propose") {
       event = "ai_request";
       if (body.consent !== true || !allowedArea(body.spaceId))
@@ -154,7 +162,7 @@ export async function aiApi(
       await context.store.audit(event, "ok");
       const result = await context
         .provider()
-        .propose(message, source, today, planning);
+        .propose(message, source, today, planning, area);
       if (!result || typeof result !== "object" || Array.isArray(result))
         throw new PrivateError("AI_PROVIDER_INVALID", 502);
       const r = result as Record<string, unknown>;
@@ -175,6 +183,7 @@ export async function aiApi(
           createdAt: new Date().toISOString(),
         }));
         references = planningReferences(r.planningIds, source);
+        if (proposals.some((p) => p.spaceId !== area)) throw Error("boundary");
       } catch {
         throw new PrivateError("AI_PROVIDER_INVALID", 502);
       }
@@ -184,13 +193,12 @@ export async function aiApi(
       lock = randomUUID();
       if (!(await context.store.lease("notion-workflow", lock)))
         throw new PrivateError("WORKFLOW_BUSY", 409, 5);
-      const previous =
-        (await context.store.get<AiProposal[]>("ai-proposals")) ?? [];
+      const previous = await scopedProposals(context.store, area);
       if (previous.length + proposals.length > 200)
         throw new PrivateError("AI_DRAFT_LIMIT", 409);
       if (proposals.length)
         await context.store.putAudited(
-          "ai-proposals",
+          aiSlot("proposals", area),
           [...previous, ...proposals],
           event,
           proposals.length,
@@ -215,8 +223,10 @@ export async function aiApi(
       if (body.consent !== true || body.confirmedActual !== true)
         throw new PrivateError("AI_CONSENT_REQUIRED", 400);
       const items = authorizedItems(body.items);
+      if (items.some((item) => item.spaceId !== area))
+        throw new PrivateError("AI_BOUNDARY_DENIED", 403);
       await context.store.putAudited(
-        "ai-context",
+        aiSlot("context", area),
         items,
         event,
         items.length,
@@ -225,8 +235,7 @@ export async function aiApi(
       return response({ context: items });
     }
     event = "ai_decision";
-    const proposals =
-      (await context.store.get<AiProposal[]>("ai-proposals")) ?? [];
+    const proposals = await scopedProposals(context.store, area);
     const proposal = proposals.find((p) => p.id === body.id);
     if (!proposal) throw new PrivateError("AI_PROPOSAL_MISSING", 404);
     if (
@@ -238,13 +247,15 @@ export async function aiApi(
       throw new PrivateError("AI_ALREADY_DECIDED", 409);
     const edited =
       body.decision === "approved" ? fields(body.fields, source) : proposal;
+    if (edited.spaceId !== area)
+      throw new PrivateError("AI_BOUNDARY_DENIED", 403);
     const updated = {
       ...proposal,
       ...edited,
       status: body.decision as "approved" | "rejected",
     };
     await context.store.putAudited(
-      "ai-proposals",
+      aiSlot("proposals", area),
       proposals.map((p) => (p.id === proposal.id ? updated : p)),
       event,
       1,

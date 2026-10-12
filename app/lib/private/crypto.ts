@@ -40,7 +40,7 @@ export async function issueToken(
   id: string,
   now = Date.now(),
 ) {
-  return new SignJWT({})
+  return new SignJWT({ ownerVersion: digest(config.passwordHash) })
     .setProtectedHeader({ alg: "HS256" })
     .setSubject("owner")
     .setIssuer(config.origin)
@@ -66,6 +66,7 @@ export async function verifyToken(
       },
     );
     return payload.sub === "owner" &&
+      payload.ownerVersion === digest(config.passwordHash) &&
       typeof payload.jti === "string" &&
       /^[a-f\d]{64}$/i.test(payload.jti)
       ? payload.jti

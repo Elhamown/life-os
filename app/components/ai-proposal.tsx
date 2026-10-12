@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
-import { aiAreas, type AiFields, type AiProposal } from "../lib/ai/model";
+import { type AiFields, type AiProposal } from "../lib/ai/model";
 import { spaceName } from "../lib/model";
 export const kindNames = {
   task: "مهمة",
@@ -107,7 +107,7 @@ export function AiProposalCard({
                     })
                   }
                 >
-                  {aiAreas.map((id) => (
+                  {[proposal.spaceId].map((id) => (
                     <option key={id} value={id}>
                       {spaceName(id)}
                     </option>

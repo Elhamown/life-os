@@ -1,0 +1,28 @@
+name: Owner security and build
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+      - run: npm run security:check
+      - run: npm audit --omit=dev
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+    # No deployment, migrations, secrets or real integrations in this workflow.

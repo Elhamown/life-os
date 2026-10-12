@@ -1,6 +1,11 @@
 import { SignJWT } from "jose";
+import { createHash, scryptSync } from "node:crypto";
 import { defineConfig } from "@playwright/test";
-const token = await new SignJWT({})
+const salt = Buffer.alloc(32, 5);
+const fixtureHash = `scrypt$32768$8$1$${salt.toString("hex")}$${scryptSync("fixture-owner-password", salt, 64, { N: 32768, r: 8, p: 1, maxmem: 64 * 1024 * 1024 }).toString("hex")}`;
+const token = await new SignJWT({
+  ownerVersion: createHash("sha256").update(fixtureHash).digest("hex"),
+})
   .setProtectedHeader({ alg: "HS256" })
   .setSubject("owner")
   .setIssuer("http://localhost:3100")

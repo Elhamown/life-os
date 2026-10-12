@@ -1,4 +1,5 @@
 import type { SpaceId } from "../model";
+import { isSpace, spaceAccess } from "../access-policy";
 export const aiAreas = [
   "stardust",
   "studio",
@@ -34,9 +35,6 @@ export type AuthorizedItem = {
   durationMinutes: number | null;
 };
 export function allowedArea(area: unknown): area is AiArea {
-  return (
-    typeof area === "string" && (aiAreas as readonly string[]).includes(area)
-  );
+  return isSpace(area) && spaceAccess[area].externalAi;
 }
-export const excludedArea = (area: SpaceId) =>
-  area === "ministry" || area === "health";
+export const excludedArea = (area: SpaceId) => !spaceAccess[area].externalAi;

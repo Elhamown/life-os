@@ -31,6 +31,8 @@ const errors: Record<string, string> = {
   AI_RATE_LIMITED: "وصلت إلى حد الطلبات. انتظر عشر دقائق.",
   AI_PROVIDER_RATE_LIMITED: "وصل المزوّد إلى حد الطلبات. حاول بعد دقيقة.",
   AI_ALREADY_DECIDED: "سبق اتخاذ قرار لهذا المقترح؛ حدّث الصفحة.",
+  AI_BOUNDARY_DENIED:
+    "كل مساحة مستقلة. اختر المساحة المطلوبة وأنشئ مسودة جديدة فيها.",
   AI_DRAFT_LIMIT: "وصلت المسودات إلى الحد المسموح (٢٠٠).",
   WORKFLOW_BUSY: "هناك عملية أخرى جارية. حاول بعد قليل.",
 };
@@ -130,7 +132,7 @@ export default function Assistant({
         setReady(s.ok);
         setAuth(!!session.authenticated);
         if (session.authenticated && initial) {
-          const r = await fetch("/api/ai/status", {
+          const r = await fetch(`/api/ai/status?spaceId=${area}`, {
             cache: "no-store",
             signal: controller.signal,
           });
@@ -177,7 +179,7 @@ export default function Assistant({
       controller.abort();
       clearInterval(timer);
     };
-  }, []);
+  }, [area]);
   useEffect(() => {
     if (!auth || !active) voice.cancel(); // stop capture when session becomes unavailable
     // The cleanup operation intentionally depends only on authentication and navigation.
@@ -189,7 +191,7 @@ export default function Assistant({
     try {
       await request("/api/private/login", { password });
       setPassword("");
-      const s = await request("/api/ai/status");
+      const s = await request(`/api/ai/status?spaceId=${area}`);
       setStatus(s);
       setItems(s.context);
       setAuth(true);
@@ -241,6 +243,7 @@ export default function Assistant({
     try {
       const result = await request("/api/ai/decision", {
         id: p.id,
+        spaceId: area,
         fields: f,
         decision,
         confirmed: true,
@@ -358,7 +361,21 @@ export default function Assistant({
               <select
                 value={area}
                 disabled={voice.status !== "idle" || busy}
-                onChange={(e) => setArea(e.target.value as AiArea)}
+                onChange={(e) => {
+                  epoch.current++;
+                  voice.cancel();
+                  setArea(e.target.value as AiArea);
+                  setStatus(null);
+                  setItems([]);
+                  setPlan([]);
+                  setMessages([]);
+                  setInput("");
+                  setItemTitle("");
+                  setItemDate("");
+                  setItemTime("");
+                  setConsent(false);
+                  setContextConsent(false);
+                }}
               >
                 {aiAreas.map((id) => (
                   <option key={id} value={id}>
@@ -367,6 +384,9 @@ export default function Assistant({
                 ))}
               </select>
             </label>
+            <p className="helper">
+              سياق ومسودات هذه المساحة فقط. تغيير المساحة يبدأ طلبًا مستقلًا.
+            </p>
             <label className="ai-consent">
               <input
                 type="checkbox"
@@ -514,6 +534,7 @@ export default function Assistant({
                   setBusy(true);
                   setError("");
                   void request("/api/ai/context", {
+                    spaceId: area,
                     items,
                     consent: contextConsent,
                     confirmedActual: true,
@@ -618,7 +639,7 @@ export default function Assistant({
         >
           <textarea
             aria-label="رسالتك للمساعد"
-            placeholder="مثال: أنشئ ملاحظة في مساحة القراءة بعنوان أفكار الكتاب"
+            placeholder={`مثال: أنشئ ملاحظة في ${spaceName(area)} بعنوان أفكاري`}
             maxLength={4000}
             rows={2}
             value={input}

@@ -117,17 +117,29 @@ async function fixture() {
   const request = (
     action: string,
     body: unknown = {},
-    options: { anonymous?: boolean; origin?: string; method?: string } = {},
+    options: {
+      anonymous?: boolean;
+      origin?: string;
+      method?: string;
+      area?: string;
+    } = {},
   ) =>
-    new Request(`https://madar.example/api/ai/${action}`, {
-      method: options.method ?? "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Origin: options.origin ?? config.origin,
-        ...(options.anonymous ? {} : { Cookie: cookie }),
+    new Request(
+      `https://madar.example/api/ai/${action}?spaceId=${options.area ?? "studies"}`,
+      {
+        method: options.method ?? "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Origin: options.origin ?? config.origin,
+          ...(options.anonymous ? {} : { Cookie: cookie }),
+        },
+        ...(options.method === "GET"
+          ? {}
+          : {
+              body: JSON.stringify({ spaceId: "studies", ...(body as object) }),
+            }),
       },
-      ...(options.method === "GET" ? {} : { body: JSON.stringify(body) }),
-    });
+    );
   const invoke = (
     action: string,
     body: unknown = {},
@@ -167,6 +179,93 @@ async function fixture() {
     },
   };
 }
+test("AI data is isolated by selected area, including legacy data and model references", async () => {
+  const f = await fixture();
+  const other = { ...actual, id: "stardust-private", spaceId: "stardust" };
+  const studio = { ...actual, id: "studio-private", spaceId: "studio" };
+  const personal = { ...actual, id: "personal-private", spaceId: "life" };
+  const legacy = [actual, other, studio, personal];
+  f.state.set("ai-context", legacy);
+  const result = await f.invoke("propose", f.send);
+  assert.equal(result.status, 200);
+  assert.deepEqual(f.lastContext, [actual]);
+  const status = await f.invoke(
+    "status",
+    {},
+    { method: "GET", area: "stardust" },
+  );
+  assert.deepEqual((await status.json()).context, [other]);
+  assert.equal(
+    (
+      await f.invoke("context", {
+        items: [actual, other],
+        consent: true,
+        confirmedActual: true,
+      })
+    ).status,
+    403,
+  );
+  assert.equal(
+    (
+      await f.invoke("context", {
+        items: [actual],
+        consent: true,
+        confirmedActual: true,
+      })
+    ).status,
+    200,
+  );
+  assert.deepEqual(f.state.get("ai-context"), legacy); // no implicit migration or deletion
+  assert.deepEqual(f.state.get("ai-context:studies"), [actual]);
+  f.setOutput({
+    proposals: [{ ...proposal, spaceId: "studio" }],
+    planningIds: [],
+  });
+  assert.equal((await f.invoke("propose", f.send)).status, 502);
+  f.setOutput({ proposals: [], planningIds: [other.id] });
+  assert.equal(
+    (await f.invoke("propose", { ...f.send, planning: true })).status,
+    502,
+  );
+  assert.equal(f.notionCalls, 0);
+});
+test("private proposal reads/decisions cannot cross an area boundary", async () => {
+  const f = await fixture();
+  const created = await (await f.invoke("propose", f.send)).json();
+  const pending = created.proposals[0];
+  assert.equal(
+    (
+      await f.invoke("decision", {
+        id: pending.id,
+        spaceId: "stardust",
+        decision: "approved",
+        confirmed: true,
+        fields: proposal,
+      })
+    ).status,
+    404,
+  );
+  assert.equal(
+    (
+      await f.invoke("decision", {
+        id: pending.id,
+        decision: "approved",
+        confirmed: true,
+        fields: { ...proposal, spaceId: "studio" },
+      })
+    ).status,
+    403,
+  );
+  const status = await (
+    await f.invoke("status", {}, { method: "GET", area: "studio" })
+  ).json();
+  assert.deepEqual(status.proposals, []);
+  for (const area of ["ministry", "health", "../studio", "team"])
+    assert.equal(
+      (await f.invoke("status", {}, { method: "GET", area })).status,
+      400,
+    );
+});
 test("AI denies anonymous and cross-origin requests before provider construction", async () => {
   const f = await fixture();
   for (const action of [
@@ -250,7 +349,7 @@ test("only explicitly confirmed actual context is saved; sensitive areas rejecte
     ).status,
     200,
   );
-  assert.deepEqual(f.state.get("ai-context"), [actual]);
+  assert.deepEqual(f.state.get("ai-context:studies"), [actual]);
   assert.equal(f.calls, 0);
 });
 test("daily planning requires actual context and returns only server-authorized records", async () => {
@@ -484,7 +583,7 @@ test("production adapter sends strict schema/store:false, Arabic transcription a
           },
     );
   });
-  await provider.propose("رسالة", [actual], "2026-10-11", false);
+  await provider.propose("رسالة", [actual], "2026-10-11", false, "studies");
   await provider.transcribe(
     new File(["audio"], "capture.webm", { type: "audio/webm" }),
   );
@@ -509,7 +608,7 @@ test("provider failures/rate limits/truncation are safe and never retried into d
       return new Response("secret-upstream-error", { status });
     });
     await assert.rejects(
-      () => provider.propose("", [], "2026-10-11", false),
+      () => provider.propose("", [], "2026-10-11", false, "studies"),
       (e) => e instanceof Error && !e.message.includes("secret-upstream-error"),
     );
   }
@@ -519,7 +618,7 @@ test("provider failures/rate limits/truncation are safe and never retried into d
       choices: [{ finish_reason: "length", message: { content: "{}" } }],
     }),
   );
-  await assert.rejects(() => p.propose("", [], "2026-10-11", false));
+  await assert.rejects(() => p.propose("", [], "2026-10-11", false, "studies"));
   assert.throws(() => aiConfig({ MADAR_AI_BASE_URL: "http://127.0.0.1" }));
   assert.throws(() =>
     aiConfig({ MADAR_AI_BASE_URL: "https://user:password@provider.example" }),

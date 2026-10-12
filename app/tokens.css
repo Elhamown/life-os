@@ -1,22 +1,24 @@
 /* Editable MADAR theme: colors, typography, spacing and geometry. */
 :root {
+  --brand-navy: #14243d;
+  --brand-red: #b71c32;
   color-scheme: light;
   --canvas: #f6f7fb;
   --surface: #fff;
   --surface-soft: #f0f1f8;
-  --ink: #202943;
+  --ink: var(--brand-navy);
   --muted: #59657d;
   --line: #e0e4ef;
-  --accent: #6654ae;
-  --accent-hover: #544298;
-  --accent-soft: #efebfa;
+  --accent: var(--brand-red);
+  --accent-hover: #97172a;
+  --accent-soft: #fcecef;
   --on-accent: #fff;
-  --navy: #222c48;
+  --navy: var(--brand-navy);
   --warning: #986022;
   --warning-soft: #fcf2e3;
   --success: #35735e;
   --shadow: 0 16px 60px #1d26431a;
-  --font-body: "Tajawal", Tahoma, Arial, sans-serif;
+  --font-body: "Neo Sans Arabic", "Tajawal", Tahoma, Arial, sans-serif;
   --radius: 14px;
   --radius-small: 8px;
   --space-1: 4px;
@@ -31,16 +33,16 @@
 }
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --canvas: #121728;
-  --surface: #1b2236;
-  --surface-soft: #232b42;
+  --canvas: #0c182b;
+  --surface: var(--brand-navy);
+  --surface-soft: #1d304d;
   --ink: #edf0fa;
   --muted: #b0bad0;
   --line: #35405b;
-  --accent: #b5a3ee;
-  --accent-hover: #c7b7f8;
-  --accent-soft: #302949;
-  --on-accent: #211934;
+  --accent: #ffa2af;
+  --accent-hover: #ffbcc6;
+  --accent-soft: #422531;
+  --on-accent: #14243d;
   --navy: #e4e8f5;
   --warning: #e8bd84;
   --warning-soft: #3d3025;

@@ -102,6 +102,8 @@ export async function privateAuthApi(
       throw new PrivateError("LOGIN_RATE_LIMITED", 429, 600);
     }
     const body = await readJson(request);
+    if (Object.keys(body).some((key) => key !== "password"))
+      throw new PrivateError("INVALID_REQUEST", 400);
     if (
       typeof body.password !== "string" ||
       !(await passwordMatches(body.password, context.config.passwordHash))

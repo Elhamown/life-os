@@ -6,10 +6,12 @@
   "scripts": {
     "dev": "next dev --hostname 0.0.0.0",
     "build": "next build",
+    "prebuild": "node scripts/check-fonts.mjs",
     "start": "next start --hostname 0.0.0.0",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
-    "test": "node --conditions=react-server --import tsx --test tests/*.test.ts",
+    "test": "node --conditions=react-server --import tsx --test --test-concurrency=1 tests/*.test.ts",
+    "security:check": "node scripts/security-check.mjs",
     "test:e2e": "playwright test",
     "notion:store:init": "node --env-file-if-exists=.env.local scripts/init-private-store.mjs",
     "notion:password": "node scripts/create-owner-password.mjs",

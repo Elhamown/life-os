@@ -8,6 +8,7 @@ export default function Login() {
     <main className="login-shell">
       <h1>مدار، مساحتك الخاصة.</h1>
       <p>يلزم تسجيل الدخول لفتح الموقع أو مراجعة بيانات Notion.</p>
+      <p className="helper">حساب مالك واحد · لا تسجيل عام أو دعوات أو فرق.</p>
       <form
         onSubmit={async (e) => {
           e.preventDefault();
