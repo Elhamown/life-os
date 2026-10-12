@@ -1,9 +1,18 @@
 // Local, offline setup only. No network, environment credentials or application imports.
 import { randomBytes, scryptSync } from "node:crypto";
-import { mkdtemp, chmod, writeFile } from "node:fs/promises";
+import { mkdtemp, chmod, writeFile, realpath } from "node:fs/promises";
 import { homedir } from "node:os";
-import { join } from "node:path";
-import { pathToFileURL } from "node:url";
+import { join, relative, isAbsolute, sep } from "node:path";
+import { pathToFileURL, fileURLToPath } from "node:url";
+
+export function assertOutsideRepository(home, repository) {
+  const path = relative(repository, home);
+  if (
+    !path ||
+    (!isAbsolute(path) && path !== ".." && !path.startsWith(`..${sep}`))
+  )
+    throw new Error("Private output must be outside the repository.");
+}
 
 export function createSecretValues(password, entropy = randomBytes) {
   if (
@@ -83,6 +92,11 @@ async function main() {
     throw new Error(
       "Use a private interactive terminal, without arguments, pipes or redirection.",
     );
+  const home = await realpath(homedir());
+  const repository = await realpath(
+    fileURLToPath(new URL("../", import.meta.url)),
+  );
+  assertOutsideRepository(home, repository);
   process.umask(0o077);
   let password = await hiddenInput(
     "Choose owner password (hidden, 16–128 characters): ",
@@ -91,7 +105,7 @@ async function main() {
   if (password !== confirmation) throw new Error("Passwords do not match.");
   const values = createSecretValues(password);
   password = confirmation = "";
-  const directory = await mkdtemp(join(homedir(), ".madar-owner-secrets-"));
+  const directory = await mkdtemp(join(home, ".madar-owner-secrets-"));
   await chmod(directory, 0o700);
   for (const [name, value] of Object.entries(values))
     await writeFile(join(directory, name), value, { mode: 0o600, flag: "wx" });

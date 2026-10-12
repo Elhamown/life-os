@@ -1,8 +1,32 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { createSecretValues } from "../scripts/setup-owner-secrets.mjs";
+import {
+  createSecretValues,
+  assertOutsideRepository,
+} from "../scripts/setup-owner-secrets.mjs";
 import { passwordMatches } from "../app/lib/private/crypto";
+
+test("private output rejects a home directory within the repository before generation", () => {
+  assert.doesNotThrow(() =>
+    assertOutsideRepository(
+      "/Users/test-owner",
+      "/Users/test-owner/Projects/life-os",
+    ),
+  );
+  assert.throws(
+    () => assertOutsideRepository("/Users/test-owner", "/Users/test-owner"),
+    /outside/,
+  );
+  assert.throws(
+    () =>
+      assertOutsideRepository("/Users/test-owner/private", "/Users/test-owner"),
+    /outside/,
+  );
+  assert.doesNotThrow(() =>
+    assertOutsideRepository("/Users/test-owner-other", "/Users/test-owner"),
+  );
+});
 
 test("offline setup matches production scrypt verification and exact encodings using synthetic entropy only", async () => {
   let calls = 0;
