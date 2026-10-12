@@ -6,6 +6,7 @@ export default function OwnerSessionGuard() {
   const path = usePathname();
   useEffect(() => {
     if (!["/", "/discovery", "/sync"].includes(path)) return;
+    if (path === "/" && window.location.hostname === "life-os-git-feature-single-owner-boundaries-elhamown.vercel.app") return;
     let live = true,
       checking = false;
     let pending: AbortController | null = null;
