@@ -19,7 +19,9 @@ def check(scenario):
     with tempfile.TemporaryDirectory(prefix="madar-synthetic-pty-") as home:
         master, slave = pty.openpty()
         env = {**os.environ, "HOME": home}
-        child = subprocess.Popen([NODE, str(ROOT / "tests/fixtures/owner-terminal.mjs")], stdin=slave, stdout=slave, stderr=slave, cwd=ROOT, env=env)
+        diagnostic = scenario.startswith("diagnose-")
+        command = [NODE, str(ROOT / "scripts/setup-owner-secrets.mjs"), "--diagnose-input"] if diagnostic else [NODE, str(ROOT / "tests/fixtures/owner-terminal.mjs")]
+        child = subprocess.Popen(command, stdin=slave, stdout=slave, stderr=slave, cwd=ROOT, env=env)
         os.close(slave)
         captured = bytearray()
         def read_until(marker):
@@ -42,8 +44,17 @@ def check(scenario):
         def send(data):
             os.write(master, data)
         try:
-            read_until(b"Choose owner password")
-            if scenario == "typing":
+            read_until(b"Input length check" if diagnostic else b"Choose owner password")
+            if diagnostic:
+                if scenario == "diagnose-startup":
+                    send(b"\r\n")
+                    time.sleep(0.01)
+                typed = b"X" * (15 if scenario == "diagnose-short" else 32)
+                for byte in typed:
+                    send(bytes([byte]))
+                    time.sleep(0.001)
+                send(b"\r")
+            elif scenario == "typing":
                 for byte in PASSWORD:
                     send(bytes([byte]))
                     time.sleep(0.001)
@@ -79,7 +90,14 @@ def check(scenario):
                 read_until(b"Confirm password")
                 send(b"different-synthetic-password\r")
             errors = {"cancel": b"[INPUT_CANCELLED]", "policy": b"[PASSWORD_POLICY]", "mismatch": b"[PASSWORD_MISMATCH]"}
-            if scenario in errors:
+            if diagnostic:
+                passed = scenario != "diagnose-short"
+                marker = b'{"characters":32,"utf8Bytes":32,"validationPassed":true}' if passed else b'{"characters":15,"utf8Bytes":15,"validationPassed":false}'
+                read_until(marker)
+                child.wait(timeout=5)
+                if child.returncode != (0 if passed else 1) or list(Path(home).iterdir()) or b"X"*15 in captured:
+                    raise AssertionError("Diagnostic was not private and side-effect free: " + scenario)
+            elif scenario in errors:
                 read_until(errors[scenario])
                 child.wait(timeout=5)
                 if child.returncode != 1 or list(Path(home).iterdir()):
@@ -99,6 +117,6 @@ def check(scenario):
                 child.wait(timeout=5)
             os.close(master)
 
-for scenario in ["typing", "split-crlf", "coalesced-paste", "bracketed-paste", "backspace-unicode", "cancel", "policy", "mismatch", "typing"]:
+for scenario in ["typing", "split-crlf", "coalesced-paste", "bracketed-paste", "backspace-unicode", "cancel", "policy", "mismatch", "typing", "diagnose-32", "diagnose-startup", "diagnose-short"]:
     check(scenario)
-print("PASS: 9 real PTY scenarios; synthetic entropy only; no password/key output; private modes verified.")
+print("PASS: 12 real PTY scenarios; synthetic entropy only; no password/key output; private modes verified.")

@@ -7,7 +7,7 @@ import { pathToFileURL, fileURLToPath } from "node:url";
 
 const messages = {
   TERMINAL_REQUIRED:
-    "Use a private interactive terminal without arguments, pipes or redirection.",
+    "Use a private interactive terminal without pipes or redirection; only --diagnose-input is optional.",
   PLATFORM_UNSUPPORTED: "Use macOS/Linux or a private local WSL terminal.",
   TERMINAL_IO: "Terminal input or raw mode is unavailable.",
   INPUT_EOF: "Terminal input ended before completion.",
@@ -52,13 +52,19 @@ export function assertOutsideRepository(home, repository) {
   )
     throw new SetupError("OUTPUT_IN_REPOSITORY");
 }
+export function passwordDiagnostics(password) {
+  const text = typeof password === "string";
+  const characters = text ? password.length : 0;
+  const utf8Bytes = text ? Buffer.byteLength(password, "utf8") : 0;
+  return {
+    characters,
+    utf8Bytes,
+    validationPassed:
+      text && characters >= 16 && characters <= 128 && utf8Bytes <= 512,
+  };
+}
 export function validatePassword(password) {
-  if (
-    typeof password !== "string" ||
-    password.length < 16 ||
-    password.length > 128 ||
-    Buffer.byteLength(password) > 512
-  )
+  if (!passwordDiagnostics(password).validationPassed)
     throw new SetupError("PASSWORD_POLICY");
 }
 export function createSecretValues(password, entropy = randomBytes) {
@@ -102,6 +108,8 @@ export class HiddenTerminal {
     this.active = null;
     this.failure = null;
     this.closed = false;
+    this.firstRead = true;
+    this.awaitingFirstCharacter = false;
     this.onData = (chunk) => {
       this.buffer += chunk;
       if (Buffer.byteLength(this.buffer) > 8192) {
@@ -138,6 +146,11 @@ export class HiddenTerminal {
     return new Promise((resolve, reject) => {
       this.active = { resolve, reject };
       this.value = "";
+      // A launch-command CR/LF can already be queued when raw input starts.
+      // Ignore blank terminators only before any password character in the first read.
+      // Deleting a typed password to empty, or an empty confirmation, still submits empty.
+      this.awaitingFirstCharacter = this.firstRead;
+      this.firstRead = false;
       try {
         this.output.write(prompt);
         this.drain();
@@ -188,6 +201,7 @@ export class HiddenTerminal {
       }
       if (!this.paste && (char === "\r" || char === "\n")) {
         this.ignoreLF = char === "\r";
+        if (this.awaitingFirstCharacter) continue;
         const value = this.value,
           active = this.active;
         this.active = null;
@@ -201,7 +215,10 @@ export class HiddenTerminal {
       else if (char.charCodeAt(0) < 32 || char === "\u007f") {
         this.fail(new SetupError("INPUT_CONTROL"));
         return;
-      } else this.value += char;
+      } else {
+        this.awaitingFirstCharacter = false;
+        this.value += char;
+      }
       if (this.value.length > 128 || Buffer.byteLength(this.value) > 512) {
         this.fail(new SetupError("PASSWORD_TOO_LONG"));
         return;
@@ -231,13 +248,16 @@ export class HiddenTerminal {
   }
 }
 
-export async function readConfirmedPassword(terminal) {
+/** @param {(metrics: {characters: number, utf8Bytes: number, validationPassed: boolean}) => void} [diagnose] */
+export async function readConfirmedPassword(terminal, diagnose = () => {}) {
   let password = await terminal.read(
     "Choose owner password (hidden, 16–128 characters): ",
   );
   // Diagnose a too-short first entry before asking for confirmation.
+  diagnose(passwordDiagnostics(password));
   validatePassword(password);
   let confirmation = await terminal.read("Confirm password (hidden): ");
+  diagnose(passwordDiagnostics(confirmation));
   if (password !== confirmation) {
     password = confirmation = "";
     throw new SetupError("PASSWORD_MISMATCH");
@@ -277,21 +297,27 @@ export async function writePrivateOutput(home, repository, values) {
 async function main() {
   if (process.platform === "win32")
     throw new SetupError("PLATFORM_UNSUPPORTED");
+  const args = process.argv.slice(2);
+  const diagnosticOnly = args.length === 1 && args[0] === "--diagnose-input";
   if (
     !process.stdin.isTTY ||
     !process.stderr.isTTY ||
     !process.stdout.isTTY ||
-    process.argv.length !== 2
+    (args.length !== 0 && !diagnosticOnly)
   )
     throw new SetupError("TERMINAL_REQUIRED");
   let home, repository;
-  try {
-    home = await realpath(homedir());
-    repository = await realpath(fileURLToPath(new URL("../", import.meta.url)));
-  } catch {
-    throw new SetupError("OUTPUT_LOCATION");
+  if (!diagnosticOnly) {
+    try {
+      home = await realpath(homedir());
+      repository = await realpath(
+        fileURLToPath(new URL("../", import.meta.url)),
+      );
+    } catch {
+      throw new SetupError("OUTPUT_LOCATION");
+    }
+    assertOutsideRepository(home, repository);
   }
-  assertOutsideRepository(home, repository);
   process.umask(0o077);
   const terminal = new HiddenTerminal();
   const onSignal = () => {
@@ -302,7 +328,20 @@ async function main() {
   process.once("SIGTERM", onSignal);
   process.once("SIGINT", onSignal);
   try {
-    let password = await readConfirmedPassword(terminal);
+    const diagnose = (metrics) =>
+      process.stdout.write(`${JSON.stringify(metrics)}\n`);
+    if (diagnosticOnly) {
+      let input = await terminal.read(
+        "Input length check (hidden; no hashing or files): ",
+      );
+      const metrics = passwordDiagnostics(input);
+      input = "";
+      terminal.close();
+      diagnose(metrics);
+      process.exitCode = metrics.validationPassed ? 0 : 1;
+      return;
+    }
+    let password = await readConfirmedPassword(terminal, diagnose);
     terminal.close();
     const values = createSecretValues(password);
     password = "";

@@ -20,6 +20,8 @@ import {
   safeSetupError,
   SetupError,
   writePrivateOutput,
+  passwordDiagnostics,
+  validatePassword,
 } from "../scripts/setup-owner-secrets.mjs";
 
 class TerminalStream extends PassThrough {
@@ -249,5 +251,105 @@ test("real POSIX PTY input, paste, cancellation and private output pass without 
   );
   // Do not attach captured output to assertions; test fixtures never print secret values.
   assert.equal(result.status, 0, "Real PTY regression checks must pass");
-  assert.match(result.stdout, /PASS: 9 real PTY scenarios/);
+  assert.match(result.stdout, /PASS: 12 real PTY scenarios/);
+});
+
+test("startup CRLF before 32 manually typed ASCII characters never submits an empty password", async () => {
+  const f = fixture();
+  const synthetic = "X".repeat(32);
+  const diagnostics: {
+    characters: number;
+    utf8Bytes: number;
+    validationPassed: boolean;
+  }[] = [];
+  try {
+    const pending = readConfirmedPassword(f.terminal, (metrics) =>
+      diagnostics.push(metrics),
+    );
+    await feed(f.input, ["\r", "\n", ...synthetic, "\r", ...synthetic, "\r"]);
+    assert.equal(await pending, synthetic);
+    assert.deepEqual(diagnostics, [
+      { characters: 32, utf8Bytes: 32, validationPassed: true },
+      { characters: 32, utf8Bytes: 32, validationPassed: true },
+    ]);
+    assert.equal(f.display().includes(synthetic), false);
+  } finally {
+    f.terminal.close();
+  }
+});
+test("coalesced startup terminators preserve all 32 characters and subsequent confirmation", async () => {
+  const f = fixture();
+  const synthetic = "X".repeat(32);
+  try {
+    const pending = readConfirmedPassword(f.terminal);
+    await feed(f.input, ["\r\n" + synthetic + "\r\n" + synthetic + "\r\n"]);
+    assert.equal(await pending, synthetic);
+  } finally {
+    f.terminal.close();
+  }
+});
+test("deleting the entire first entry and an empty confirmation remain invalid", async () => {
+  const f = fixture();
+  try {
+    const pending = assert.rejects(readConfirmedPassword(f.terminal), {
+      code: "PASSWORD_POLICY",
+    });
+    await feed(f.input, ["x\u007f\r"]);
+    await pending;
+  } finally {
+    f.terminal.close();
+  }
+  const second = fixture();
+  try {
+    const pending = assert.rejects(readConfirmedPassword(second.terminal), {
+      code: "PASSWORD_MISMATCH",
+    });
+    await feed(second.input, [password + "\r", "\r"]);
+    await pending;
+  } finally {
+    second.terminal.close();
+  }
+});
+test("diagnostic schema exposes only counts and the unchanged validation result", () => {
+  for (const synthetic of [
+    "",
+    "a".repeat(15),
+    "a".repeat(16),
+    "a".repeat(32),
+    "a".repeat(128),
+    "a".repeat(129),
+    "ع".repeat(32),
+  ]) {
+    const metrics = passwordDiagnostics(synthetic);
+    assert.deepEqual(Object.keys(metrics), [
+      "characters",
+      "utf8Bytes",
+      "validationPassed",
+    ]);
+    assert.equal(metrics.characters, synthetic.length);
+    assert.equal(metrics.utf8Bytes, Buffer.byteLength(synthetic));
+    if (metrics.validationPassed)
+      assert.doesNotThrow(() => validatePassword(synthetic));
+    else
+      assert.throws(() => validatePassword(synthetic), {
+        code: "PASSWORD_POLICY",
+      });
+  }
+});
+test("normal policy failure reports only sanitized lengths before rejection", async () => {
+  const f = fixture();
+  const counts: unknown[] = [];
+  try {
+    const pending = assert.rejects(
+      readConfirmedPassword(f.terminal, (metrics) => counts.push(metrics)),
+      { code: "PASSWORD_POLICY" },
+    );
+    await feed(f.input, ["short\r"]);
+    await pending;
+    assert.deepEqual(counts, [
+      { characters: 5, utf8Bytes: 5, validationPassed: false },
+    ]);
+  } finally {
+    f.terminal.close();
+  }
 });
