@@ -1,5 +1,7 @@
 # مدار — MADAR Life OS
 
+Private offline password and key setup (no secret output): [Arabic guide](docs/private-owner-setup.md), using `node scripts/setup-owner-secrets.mjs` on your own trusted device.
+
 Current single-owner hardening: [Arabic setup, data boundaries, recovery and licensed font support](docs/single-owner.md). Branding uses navy `#14243D` and red `#B71C32`. No real integrations or automatic deployment are enabled by this change.
 
 An Arabic-first personal operating system built on the existing Next.js App Router application. The workspace now offers seven sections: Today, Spaces, Calendar, Assistant, Notion Discovery, Sync Center, and Settings. Existing private routes are preserved. No second project is introduced. The dashboard retains synthetic demo records, but the whole site now requires persisted private owner authentication. Discovery, AI drafts and controlled Notion synchronization use secure server APIs and an encrypted internal PostgreSQL store.
@@ -21,7 +23,7 @@ npm run build
 npm run start
 ```
 
-`npm test` runs 87 demo-model, AI/voice, read-only SDK, controlled sync, single-owner authorization, boundary and SQL-store tests. TypeScript strict mode is enabled. TypeScript 5.9 is used because the installed typescript-eslint parser does not support TypeScript 7.
+`npm test` runs demo-model, AI/voice, read-only SDK, controlled sync, single-owner authorization, boundary, SQL-store and offline owner-setup tests. TypeScript strict mode is enabled. TypeScript 5.9 is used because the installed typescript-eslint parser does not support TypeScript 7.
 
 Browser tests run against the production build:
 
