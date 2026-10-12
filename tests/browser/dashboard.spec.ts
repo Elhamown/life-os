@@ -1,8 +1,32 @@
 import { test, expect } from "@playwright/test";
 import { mkdirSync } from "node:fs";
+import { initialState, todayDate } from "../../app/lib/model";
 const artifacts = "/tmp/madar-screenshots";
 test.beforeEach(async ({ page }) => {
+  // Synthetic records are seeded only into the disposable browser-test database.
+  const prior = await (await page.request.get("/api/workspace")).json();
+  const today = todayDate();
+  const yesterday = new Date(today + "T12:00:00Z");
+  yesterday.setUTCDate(yesterday.getUTCDate() - 1);
+  const state = {
+    ...initialState,
+    projects: [],
+    events: [],
+    tasks: initialState.tasks.map((t) => ({
+      ...t,
+      date: t.id === "t5" ? yesterday.toISOString().slice(0, 10) : today,
+    })),
+    proposals: initialState.proposals.map((p) => ({ ...p, date: today })),
+  };
+  const seed = await page.request.post("/api/workspace", {
+    headers: { Origin: "http://localhost:3100" },
+    data: { revision: prior.revision, workspace: { schemaVersion: 1, state } },
+  });
+  expect(seed.status()).toBe(200);
   await page.goto("/");
+  await expect(
+    page.getByRole("status").filter({ hasText: "محفوظ في مساحة العمل الخاصة" }),
+  ).toBeVisible();
   await page.evaluate(() => document.fonts.ready);
 });
 test("Arabic RTL, completion synchronization, and overdue rescheduling", async ({
@@ -48,7 +72,7 @@ test("global capture, conversion without duplication, dialog focus and escape", 
   await expect(dialog.getByRole("textbox")).toBeFocused();
   await dialog.getByRole("textbox").fill("فكرة للاختبار");
   await dialog.getByLabel("النوع", { exact: true }).selectOption("note");
-  await dialog.getByRole("button", { name: "إضافة إلى الديمو" }).click();
+  await dialog.getByRole("button", { name: "حفظ المهمة أو الملاحظة" }).click();
   const note = page.locator(".note-row").filter({ hasText: "فكرة للاختبار" });
   await note.getByRole("button", { name: "تحويل إلى مهمة" }).click();
   await expect(
