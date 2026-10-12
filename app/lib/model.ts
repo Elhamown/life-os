@@ -15,6 +15,7 @@ export type Task = {
   date: string;
   priority: boolean;
   done: boolean;
+  projectId?: string;
 };
 export type Proposal = {
   id: string;
@@ -25,7 +26,64 @@ export type Proposal = {
   status: "pending" | "approved" | "rejected";
 };
 export type Note = { id: string; title: string; spaceId: SpaceId };
-export type State = { tasks: Task[]; notes: Note[]; proposals: Proposal[] };
+export type Project = {
+  id: string;
+  title: string;
+  spaceId: SpaceId;
+  deadline: string;
+  notes: string;
+};
+export type CalendarEvent = {
+  id: string;
+  title: string;
+  spaceId: SpaceId;
+  date: string;
+  time: string;
+  duration: string;
+};
+export type Habit = {
+  id: string;
+  title: string;
+  spaceId: SpaceId;
+  days: string[];
+};
+export type Goal = {
+  id: string;
+  title: string;
+  spaceId: SpaceId;
+  deadline: string;
+  current: number;
+  target: number;
+};
+export type CustomSpace = { id: string; title: string };
+export type State = {
+  activity?: { id: string; at: string; label: string }[];
+  habits?: Habit[];
+  goals?: Goal[];
+  customSpaces?: CustomSpace[];
+  tasks: Task[];
+  notes: Note[];
+  proposals: Proposal[];
+  projects?: Project[];
+  events?: CalendarEvent[];
+  preferences?: { weekStarts: "saturday" | "monday" };
+};
+export const emptyState: State = {
+  tasks: [],
+  notes: [],
+  proposals: [],
+  projects: [],
+  events: [],
+  preferences: { weekStarts: "saturday" },
+};
+export function todayDate() {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Damascus",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+}
 export const demoDate = "2026-10-11";
 export const domains: { id: Domain; name: string; subtitle: string }[] = [
   { id: "work", name: "العمل", subtitle: "مشاريعك وأثرك المهني" },
@@ -183,6 +241,21 @@ export const initialState: State = {
 };
 export type Action =
   | { type: "hydrate"; state: State }
+  | { type: "habit"; habit: Habit }
+  | { type: "toggleHabit"; id: string; date: string }
+  | { type: "deleteHabit"; id: string }
+  | { type: "goal"; goal: Goal }
+  | { type: "deleteGoal"; id: string }
+  | { type: "customSpace"; space: CustomSpace }
+  | { type: "editTask"; task: Task }
+  | { type: "deleteTask"; id: string }
+  | { type: "editNote"; note: Note }
+  | { type: "deleteNote"; id: string }
+  | { type: "project"; project: Project }
+  | { type: "deleteProject"; id: string }
+  | { type: "event"; event: CalendarEvent }
+  | { type: "deleteEvent"; id: string }
+  | { type: "preferences"; preferences: NonNullable<State["preferences"]> }
   | { type: "toggle"; id: string }
   | { type: "reschedule"; id: string }
   | {
@@ -191,6 +264,7 @@ export type Action =
       title: string;
       spaceId: SpaceId;
       kind: "task" | "note";
+      date?: string;
     }
   | { type: "convert"; id: string }
   | { type: "propose"; proposal: Proposal }
@@ -206,6 +280,103 @@ export function reducer(state: State, action: Action): State {
   switch (action.type) {
     case "hydrate":
       return action.state;
+    case "habit":
+      return {
+        ...state,
+        habits: [
+          ...(state.habits ?? []).filter((h) => h.id !== action.habit.id),
+          action.habit,
+        ],
+      };
+    case "toggleHabit":
+      return {
+        ...state,
+        habits: (state.habits ?? []).map((h) =>
+          h.id === action.id
+            ? {
+                ...h,
+                days: h.days.includes(action.date)
+                  ? h.days.filter((d) => d !== action.date)
+                  : [...h.days, action.date],
+              }
+            : h,
+        ),
+      };
+    case "deleteHabit":
+      return {
+        ...state,
+        habits: (state.habits ?? []).filter((h) => h.id !== action.id),
+      };
+    case "goal":
+      return {
+        ...state,
+        goals: [
+          ...(state.goals ?? []).filter((g) => g.id !== action.goal.id),
+          action.goal,
+        ],
+      };
+    case "deleteGoal":
+      return {
+        ...state,
+        goals: (state.goals ?? []).filter((g) => g.id !== action.id),
+      };
+    case "customSpace":
+      return {
+        ...state,
+        customSpaces: [
+          ...(state.customSpaces ?? []).filter((s) => s.id !== action.space.id),
+          action.space,
+        ],
+      };
+    case "editTask":
+      return {
+        ...state,
+        tasks: state.tasks.map((t) =>
+          t.id === action.task.id ? action.task : t,
+        ),
+      };
+    case "deleteTask":
+      return { ...state, tasks: state.tasks.filter((t) => t.id !== action.id) };
+    case "editNote":
+      return {
+        ...state,
+        notes: state.notes.map((n) =>
+          n.id === action.note.id ? action.note : n,
+        ),
+      };
+    case "deleteNote":
+      return { ...state, notes: state.notes.filter((n) => n.id !== action.id) };
+    case "project":
+      return {
+        ...state,
+        projects: [
+          ...(state.projects ?? []).filter((p) => p.id !== action.project.id),
+          action.project,
+        ],
+      };
+    case "deleteProject":
+      return {
+        ...state,
+        projects: (state.projects ?? []).filter((p) => p.id !== action.id),
+        tasks: state.tasks.map((t) =>
+          t.projectId === action.id ? { ...t, projectId: undefined } : t,
+        ),
+      };
+    case "event":
+      return {
+        ...state,
+        events: [
+          ...(state.events ?? []).filter((e) => e.id !== action.event.id),
+          action.event,
+        ],
+      };
+    case "deleteEvent":
+      return {
+        ...state,
+        events: (state.events ?? []).filter((e) => e.id !== action.id),
+      };
+    case "preferences":
+      return { ...state, preferences: action.preferences };
     case "toggle":
       return {
         ...state,
@@ -217,7 +388,7 @@ export function reducer(state: State, action: Action): State {
       return {
         ...state,
         tasks: state.tasks.map((t) =>
-          t.id === action.id ? { ...t, date: demoDate } : t,
+          t.id === action.id ? { ...t, date: todayDate() } : t,
         ),
       };
     case "capture": {
@@ -237,7 +408,7 @@ export function reducer(state: State, action: Action): State {
                 id: action.id,
                 title,
                 spaceId: action.spaceId,
-                date: demoDate,
+                date: action.date ?? todayDate(),
                 priority: false,
                 done: false,
               },
@@ -259,7 +430,7 @@ export function reducer(state: State, action: Action): State {
         notes: state.notes.filter((n) => n.id !== note.id),
         tasks: [
           ...state.tasks,
-          { ...note, date: demoDate, priority: false, done: false },
+          { ...note, date: todayDate(), priority: false, done: false },
         ],
       };
     }
@@ -309,5 +480,6 @@ export function reducer(state: State, action: Action): State {
     }
   }
 }
-export const spaceName = (id: SpaceId) => spaces.find((s) => s.id === id)!.name;
+export const spaceName = (id: SpaceId) =>
+  spaces.find((s) => s.id === id)?.name ?? "مساحة مخصصة";
 export const number = (n: number) => n.toLocaleString("ar");

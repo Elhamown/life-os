@@ -22,8 +22,6 @@ import {
   type SpaceId,
   domains,
   spaces,
-  projects,
-  events,
   number,
 } from "../lib/model";
 import { Empty, Section, TaskRow } from "./shared";
@@ -59,10 +57,12 @@ export default function Spaces({
 }) {
   const [tab, setTab] = useState<(typeof tabs)[number]>("نظرة عامة");
   const [query, setQuery] = useState("");
-  const [habit, setHabit] = useState(false);
+  const [customTitle, setCustomTitle] = useState("");
   const space = spaces.find((s) => s.id === selected);
   const tasks = state.tasks.filter((t) => t.spaceId === selected);
   const notes = state.notes.filter((n) => n.spaceId === selected);
+  const projects = state.projects ?? [];
+  const events = state.events ?? [];
   const appointments = events.filter((e) => e.spaceId === selected);
   const spaceProjects = projects.filter((p) => p.spaceId === selected);
   if (!space)
@@ -122,6 +122,54 @@ export default function Spaces({
             ) && <Empty>لا توجد مساحة تطابق البحث في هذا المجال.</Empty>}
           </Section>
         ))}
+        <Section
+          title="مساحاتك المخصصة"
+          caption="أنشئ مساحة مثل المالية أو السفر؛ تبقى بياناتها داخل مدار"
+        >
+          <form
+            className="workspace-toolbar"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (customTitle.trim()) {
+                dispatch({
+                  type: "customSpace",
+                  space: {
+                    id: `custom-${crypto.randomUUID()}`,
+                    title: customTitle.trim(),
+                  },
+                });
+                setCustomTitle("");
+              }
+            }}
+          >
+            <input
+              aria-label="اسم المساحة الجديدة"
+              value={customTitle}
+              onChange={(e) => setCustomTitle(e.target.value)}
+              maxLength={1000}
+              required
+            />
+            <button className="button">إضافة مساحة</button>
+          </form>
+          {state.customSpaces?.map((s) => (
+            <div className="record-row" key={s.id}>
+              <strong>{s.title}</strong>
+              <small>
+                {number(
+                  state.tasks.filter(
+                    (t) => (t.spaceId as string) === s.id && !t.done,
+                  ).length,
+                )}{" "}
+                مهام مفتوحة ·{" "}
+                {number(
+                  state.notes.filter((n) => (n.spaceId as string) === s.id)
+                    .length,
+                )}{" "}
+                ملاحظات
+              </small>
+            </div>
+          ))}
+        </Section>
         <details className="notion-discovery">
           <summary>
             اكتشاف Notion <span className="tag">غير متصل</span>
@@ -211,7 +259,7 @@ export default function Spaces({
                 <span className="project-marker" />
                 <div>
                   <strong>{p.title}</strong>
-                  <small>مشروع تجريبي · قيد التنفيذ</small>
+                  <small>مشروع في مساحة العمل</small>
                 </div>
                 <span className="tag">نشط</span>
               </div>
@@ -237,7 +285,7 @@ export default function Spaces({
           </Section>
         )}
         {(tab === "نظرة عامة" || tab === "التقويم") && (
-          <Section title="التقويم" caption="مواعيد اليوم التجريبي">
+          <Section title="التقويم" caption="مواعيد المساحة">
             {appointments.map((e) => (
               <div className="appointment" key={e.id}>
                 <time>{e.time}</time>
@@ -279,47 +327,17 @@ export default function Spaces({
           </Section>
         )}
         {tab === "نظرة عامة" &&
-          ["reading", "courses", "health"].includes(space.id) && (
-            <Section
-              title={
-                space.id === "reading"
-                  ? "رفّ القراءة"
-                  : space.id === "courses"
-                    ? "مسار التعلّم"
-                    : "الصحة والعادات"
-              }
-              caption="عرض متخصص تجريبي"
-            >
-              {space.id === "health" ? (
-                <label className="habit-row">
-                  <input
-                    type="checkbox"
-                    checked={habit}
-                    onChange={(e) => setHabit(e.target.checked)}
-                  />
-                  <span>استراحة قصيرة بعيدًا عن الشاشة</span>
-                  <span className="tag">
-                    {habit ? "اكتملت اليوم" : "عادة يومية"}
-                  </span>
-                </label>
-              ) : (
-                <div className="specialized">
-                  <BookOpen size={26} />
-                  <div>
-                    <strong>
-                      {space.id === "reading"
-                        ? "العادات الذرية"
-                        : "أساسيات التصميم"}
-                    </strong>
-                    <p>
-                      {space.id === "reading"
-                        ? "كتاب تجريبي · قيد القراءة"
-                        : "دورة تجريبية · قيد التعلّم"}
-                    </p>
+          state.habits?.some((h) => h.spaceId === space.id) && (
+            <Section title="العادات">
+              <p>تابع عادات هذه المساحة من قسم العادات والأهداف.</p>
+              {state.habits
+                .filter((h) => h.spaceId === space.id)
+                .map((h) => (
+                  <div key={h.id} className="record-row">
+                    <strong>{h.title}</strong>
+                    <small>{number(h.days.length)} أيام مكتملة</small>
                   </div>
-                  <span className="tag">نموذج توضيحي</span>
-                </div>
-              )}
+                ))}
             </Section>
           )}
       </div>

@@ -107,7 +107,12 @@ test("loss of the owner session clears a previously rendered private dashboard",
     page.getByRole("heading", { name: "اليوم، على مهل." }),
   ).toBeVisible();
   await context.clearCookies();
-  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await page
+    .evaluate(() => window.dispatchEvent(new Event("focus")))
+    .catch((error) => {
+      if (!String(error).includes("Execution context was destroyed"))
+        throw error;
+    });
   await expect(page).toHaveURL(/\/login\?next=/);
   await expect(
     page.getByRole("heading", { name: "اليوم، على مهل." }),

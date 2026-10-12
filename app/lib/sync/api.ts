@@ -45,7 +45,7 @@ export type SyncContext = PrivateContext & {
 };
 export function withSync(
   context: PrivateContext,
-  sync = syncConfig(),
+  sync = { ...syncConfig(), enabled: false },
 ): SyncContext {
   return {
     ...context,

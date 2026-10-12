@@ -103,7 +103,9 @@ test("authenticated assistant: structured drafts, explicit edit/approval and gro
   await page
     .getByRole("textbox", { name: "رسالتك للمساعد" })
     .fill("أضف مهمة مراجعة");
-  await page.getByRole("button", { name: "إرسال الرسالة" }).click();
+  await page
+    .getByRole("button", { name: "صياغة مسودات من الرسالة للمراجعة" })
+    .click();
   const card = page.locator(".ai-proposal");
   await expect(card).toContainText("مسودة فقط");
   await expect(card).toContainText("الوجهة: الدراسة");
@@ -225,7 +227,7 @@ test("Arabic microphone: real browser recording, stop, transcription edit, submi
   ).toBe(0);
   await page.getByLabel(/أوافق على إرسال النص/).check();
   await page.getByRole("button", { name: "تسجيل صوت عربي" }).click();
-  await expect(page.getByRole("status")).toContainText("جارٍ التسجيل");
+  await expect(page.locator(".voice-state")).toContainText("جارٍ التسجيل");
   await page.getByRole("button", { name: "إيقاف وتفريغ" }).click();
   await expect(page.getByLabel("راجع النص الصوتي قبل الإرسال")).toHaveValue(
     "نص صوتي عربي أولي",
@@ -239,11 +241,13 @@ test("Arabic microphone: real browser recording, stop, transcription edit, submi
     .getByRole("button", { name: "استخدم النص المحرر في الرسالة" })
     .click();
   expect(submitted).toBe("");
-  await page.getByRole("button", { name: "إرسال الرسالة" }).click();
+  await page
+    .getByRole("button", { name: "صياغة مسودات من الرسالة للمراجعة" })
+    .click();
   await expect(page.locator(".messages")).toContainText("لا مقترحات");
   expect(submitted).toBe("نص محرر قبل الإرسال");
   await page.getByRole("button", { name: "تسجيل صوت عربي" }).click();
-  await expect(page.getByRole("status")).toContainText("جارٍ التسجيل");
+  await expect(page.locator(".voice-state")).toContainText("جارٍ التسجيل");
   await page.getByRole("button", { name: "إلغاء التسجيل" }).click();
   await expect(page.locator(".voice-state")).toHaveCount(0);
   expect(transcriptions).toBe(1);
@@ -252,7 +256,7 @@ test("Arabic microphone: real browser recording, stop, transcription edit, submi
   );
   expect(recordings).toBe(2);
   await page.getByRole("button", { name: "تسجيل صوت عربي" }).click();
-  await expect(page.getByRole("status")).toContainText("جارٍ التسجيل");
+  await expect(page.locator(".voice-state")).toContainText("جارٍ التسجيل");
   await page
     .getByRole("navigation", { name: "التنقل الرئيسي", exact: true })
     .getByRole("button", { name: "اليوم", exact: true })
@@ -300,7 +304,9 @@ test("denied microphone and provider errors show safe recoverable feedback", asy
     "تحقق من إذن الميكروفون",
   );
   await page.getByRole("textbox", { name: "رسالتك للمساعد" }).fill("اختبار");
-  await page.getByRole("button", { name: "إرسال الرسالة" }).click();
+  await page
+    .getByRole("button", { name: "صياغة مسودات من الرسالة للمراجعة" })
+    .click();
   await expect(page.locator(".conversation")).toContainText("لم يُنفّذ شيء");
   await expect(
     page.getByRole("button", { name: "إرسال الرسالة" }),
@@ -336,7 +342,9 @@ test("expired authentication clears private drafts and context instead of retain
   await page
     .getByRole("textbox", { name: "رسالتك للمساعد" })
     .fill("اختبار جلسة");
-  await page.getByRole("button", { name: "إرسال الرسالة" }).click();
+  await page
+    .getByRole("button", { name: "صياغة مسودات من الرسالة للمراجعة" })
+    .click();
   await expect(page.locator(".ai-proposal")).toHaveCount(0);
   await expect(page.locator(".ai-context")).toHaveCount(0);
   await expect(page.locator(".conversation")).toContainText("انتهت الجلسة");
