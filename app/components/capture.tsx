@@ -97,7 +97,7 @@ export default function Capture({
           </label>
         </div>
         <p className="helper">
-          تُضاف محليًا في هذه الجلسة فقط. لا تُرسل إلى Notion.
+          تُحفظ على هذا المتصفح وتبقى بعد تحديث الصفحة. لم تُربط بـ Notion بعد.
         </p>
         <button
           type="submit"
@@ -105,7 +105,7 @@ export default function Capture({
           disabled={!title.trim()}
         >
           <Plus size={17} />
-          إضافة إلى الديمو
+          حفظ المهمة أو الملاحظة
         </button>
       </form>
     </dialog>
