@@ -182,6 +182,7 @@ export const initialState: State = {
   ],
 };
 export type Action =
+  | { type: "hydrate"; state: State }
   | { type: "toggle"; id: string }
   | { type: "reschedule"; id: string }
   | {
@@ -203,6 +204,8 @@ export type Action =
   | { type: "decide"; id: string; decision: "approved" | "rejected" };
 export function reducer(state: State, action: Action): State {
   switch (action.type) {
+    case "hydrate":
+      return action.state;
     case "toggle":
       return {
         ...state,
