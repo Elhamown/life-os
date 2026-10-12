@@ -3,7 +3,27 @@ import "@fontsource/tajawal/arabic-400.css";
 import "@fontsource/tajawal/arabic-500.css";
 import "@fontsource/tajawal/arabic-700.css";
 import "./globals.css";
-import { neoSansCss } from "./lib/neo-sans";
+import localFont from "next/font/local";
+import "./premium.css";
+const neoArabic = localFont({
+  src: [
+    { path: "./fonts/NeoSansArabic-Light.ttf", weight: "300", style: "normal" },
+    { path: "./fonts/NeoSansArabic-Bold.ttf", weight: "700", style: "normal" },
+    { path: "./fonts/NeoSansArabic-Black.ttf", weight: "900", style: "normal" },
+  ],
+  variable: "--font-neo-arabic",
+  display: "swap",
+  adjustFontFallback: false,
+  fallback: ["Tajawal", "Tahoma", "Arial"],
+});
+// The supplied Medium file is Latin-only. Never label it as Arabic Medium.
+const neoLatin = localFont({
+  src: "./fonts/Neo_Sans_Medium.ttf",
+  weight: "500",
+  variable: "--font-neo-latin",
+  display: "swap",
+  preload: false,
+});
 import OwnerSessionGuard from "./components/owner-session-guard";
 export const metadata: Metadata = {
   title: "مدار | نظام حياتك",
@@ -13,11 +33,13 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="ar" dir="rtl" suppressHydrationWarning>
+    <html
+      lang="ar"
+      dir="rtl"
+      className={`${neoArabic.variable} ${neoLatin.variable}`}
+      suppressHydrationWarning
+    >
       <head>
-        {process.env.MADAR_NEO_SANS_ENABLED === "1" && (
-          <style>{neoSansCss}</style>
-        )}
         <script
           dangerouslySetInnerHTML={{
             __html:

@@ -10,7 +10,7 @@ test("Arabic RTL, completion synchronization, and overdue rescheduling", async (
 }) => {
   await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
   await expect(
-    page.getByRole("heading", { name: "اليوم، على مهل." }),
+    page.getByRole("heading", { name: "صباح الخير، إلهام" }),
   ).toBeVisible();
   await page
     .getByRole("button", {
@@ -173,7 +173,10 @@ test("accessible light and dark screens, dialog, and no external application req
       expect(
         results.violations.map((v) => ({
           id: v.id,
-          nodes: v.nodes.map((n) => n.target),
+          nodes: v.nodes.map((n) => ({
+            target: n.target,
+            summary: n.failureSummary,
+          })),
         })),
       ).toEqual([]);
     }

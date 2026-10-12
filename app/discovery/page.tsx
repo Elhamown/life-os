@@ -1,3 +1,4 @@
+import PrivateWorkspace from "../components/private-workspace";
 import type { Metadata } from "next";
 import Discovery from "./discovery";
 import { requirePageSession } from "../lib/private/page-session";
@@ -8,5 +9,9 @@ export const metadata: Metadata = {
 };
 export default async function DiscoveryPage() {
   await requirePageSession("/discovery");
-  return <Discovery />;
+  return (
+    <PrivateWorkspace current="discovery">
+      <Discovery />
+    </PrivateWorkspace>
+  );
 }

@@ -1,3 +1,4 @@
+import PrivateWorkspace from "../components/private-workspace";
 import type { Metadata } from "next";
 import Sync from "./sync";
 import { requirePageSession } from "../lib/private/page-session";
@@ -8,5 +9,9 @@ export const metadata: Metadata = {
 };
 export default async function Page() {
   await requirePageSession("/sync");
-  return <Sync />;
+  return (
+    <PrivateWorkspace current="sync">
+      <Sync />
+    </PrivateWorkspace>
+  );
 }

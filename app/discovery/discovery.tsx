@@ -1,4 +1,5 @@
 "use client";
+import DiscoveryPreview from "../components/discovery-preview";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import {
@@ -245,6 +246,15 @@ export default function Discovery() {
           </div>
           <LockKeyhole size={28} />
         </div>
+        <div className="planning-hint">
+          <ShieldCheck size={20} />
+          <p>
+            <strong>نطاق محدود وشفاف</strong> · الجرد يشمل فقط المصادر المشتركة
+            مع التكامل والقابلة للوصول. لا محتوى صفحات، لا مسح للأجزاء غير
+            المتاحة، ولا دمج تلقائي.
+          </p>
+        </div>
+        <DiscoveryPreview />
         <div role="status" className="discovery-status">
           {error && <p className="error-message">{error}</p>}
           {notice && <p>{notice}</p>}

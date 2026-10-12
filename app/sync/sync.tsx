@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { spaceName, type SpaceId } from "../lib/model";
+import { spaceName, number, type SpaceId } from "../lib/model";
 import type { InventoryItem } from "../lib/notion/types";
 import type { AiProposal } from "../lib/ai/model";
 import type {
@@ -201,6 +201,48 @@ export default function Sync() {
         تُعاد كتابتها تلقائيًا.
       </p>
       {error && <p role="alert">{error}</p>}
+      <div
+        className="metric-grid sync-metrics"
+        aria-label="ملخص عمليات المزامنة"
+      >
+        {[
+          { label: "مصادر معتمدة", value: status?.sources.length ?? 0 },
+          {
+            label: "بانتظار القرار",
+            value:
+              status?.ledger.actions.filter((a) => a.state === "pending")
+                .length ?? 0,
+          },
+          {
+            label: "نجاح متحقق",
+            value:
+              status?.ledger.actions.filter((a) => a.state === "succeeded")
+                .length ?? 0,
+          },
+          {
+            label: "نتائج غير مؤكدة",
+            value:
+              status?.ledger.actions.filter(
+                (a) => a.state === "uncertain" || a.state === "writing",
+              ).length ?? 0,
+          },
+          {
+            label: "تعارضات / فشل",
+            value:
+              status?.ledger.actions.filter(
+                (a) => a.state === "conflict" || a.state === "failed",
+              ).length ?? 0,
+          },
+        ].map((m) => (
+          <div className="metric" key={m.label}>
+            <small>{m.label}</small>
+            <strong>{status ? number(m.value) : "—"}</strong>
+            <span>
+              {status ? "من سجل المراجعة الداخلي" : "لم تُحمّل الحالة بعد"}
+            </span>
+          </div>
+        ))}
+      </div>
       <section className="sync-overview">
         <span className="tag">
           {status?.configured

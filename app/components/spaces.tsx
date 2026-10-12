@@ -87,6 +87,7 @@ export default function Spaces({
                   return (
                     <button
                       className="space-tile"
+                      data-space={s.id}
                       key={s.id}
                       onClick={() => {
                         onSelect(s.id);
@@ -111,6 +112,25 @@ export default function Spaces({
                           )}{" "}
                           مشروع
                         </span>
+                      </span>
+                      <span className="space-tile-progress">
+                        <progress
+                          aria-label={`تقدم مهام ${s.name}`}
+                          max={
+                            state.tasks.filter((t) => t.spaceId === s.id)
+                              .length || 1
+                          }
+                          value={
+                            state.tasks.filter(
+                              (t) => t.spaceId === s.id && t.done,
+                            ).length
+                          }
+                        />
+                        <small>
+                          {state.tasks.find(
+                            (t) => t.spaceId === s.id && !t.done,
+                          )?.title || "مساحة لخطوتك التالية"}
+                        </small>
                       </span>
                       <ChevronLeft size={18} />
                     </button>

@@ -3,12 +3,12 @@ import { useReducer, useState } from "react";
 import {
   ArrowLeft,
   CalendarDays,
-  Layers,
   Orbit,
   Plus,
   Search,
   Sparkles,
-  Sun,
+  Mic,
+  Bell,
 } from "lucide-react";
 import {
   demoDate,
@@ -26,17 +26,28 @@ import Assistant from "./components/assistant";
 import SiteLogout from "./components/site-logout";
 import ThemeToggle from "./components/theme-toggle";
 import SearchPanel from "./components/search";
-type Screen = "today" | "spaces" | "assistant";
-const navigation = [
-  { id: "today", label: "اليوم", icon: Sun },
-  { id: "spaces", label: "المساحات", icon: Layers },
-  { id: "assistant", label: "المساعد", icon: Sparkles },
-] as const;
-export default function Dashboard() {
+import Calendar from "./components/calendar";
+import Settings from "./components/settings";
+import {
+  WorkspaceNavigation,
+  navigation,
+  type WorkspaceView,
+} from "./components/workspace-navigation";
+type Screen = WorkspaceView;
+export default function Dashboard({
+  initialScreen = "today",
+  initialCapture = false,
+}: {
+  initialScreen?: Screen;
+  initialCapture?: boolean;
+}) {
   const [state, dispatch] = useReducer(reducer, initialState);
-  const [screen, setScreen] = useState<Screen>("today");
+  const [screen, setScreen] = useState<Screen>(initialScreen);
+  const [notice, setNotice] = useState(false);
+  const [quickText, setQuickText] = useState("");
+  const [quickKind, setQuickKind] = useState<"task" | "note">("task");
   const [selected, setSelected] = useState<SpaceId | null>(null);
-  const [capture, setCapture] = useState(false);
+  const [capture, setCapture] = useState(initialCapture);
   const [search, setSearch] = useState(false);
   const today = state.tasks.filter((t) => t.date === demoDate);
   const priorities = today.filter((t) => t.priority).slice(0, 3);
@@ -44,6 +55,7 @@ export default function Dashboard() {
   const pending = state.proposals.filter((p) => p.status === "pending");
   function go(id: Screen) {
     setScreen(id);
+    window.history.replaceState(null, "", `/?view=${id}`);
   }
   return (
     <div className="shell">
@@ -64,20 +76,7 @@ export default function Dashboard() {
           </span>
         </button>
         <p className="sidebar-caption">حياتك، بوضوح.</p>
-        <nav aria-label="التنقل الرئيسي">
-          {navigation.map((n) => (
-            <button
-              key={n.id}
-              aria-current={screen === n.id ? "page" : undefined}
-              className={`nav-link ${screen === n.id ? "active" : ""}`}
-              onClick={() => go(n.id)}
-            >
-              <n.icon size={20} />
-              {n.label}
-              {n.id === "assistant" && <span className="nav-demo">خاص</span>}
-            </button>
-          ))}
-        </nav>
+        <WorkspaceNavigation current={screen} onNavigate={go} />
         <button
           className="button primary capture-sidebar"
           onClick={() => setCapture(true)}
@@ -122,6 +121,24 @@ export default function Dashboard() {
             >
               <Search size={19} />
             </button>
+            <button
+              className="icon-button"
+              aria-label="فتح الالتقاط الصوتي"
+              onClick={() => go("assistant")}
+            >
+              <Mic size={19} />
+            </button>
+            <button
+              className="icon-button"
+              aria-label="عرض التنبيهات"
+              aria-expanded={notice}
+              onClick={() => setNotice(!notice)}
+            >
+              <Bell size={19} />
+            </button>
+            <span className="owner-avatar" aria-label="حساب المالك: إلهام">
+              إ
+            </span>
             <ThemeToggle />
             <SiteLogout />
             <button
@@ -134,6 +151,24 @@ export default function Dashboard() {
           </div>
         </header>
         <main id="main">
+          {notice && (
+            <div className="notification-panel" role="status">
+              <strong>ما يحتاج انتباهك</strong>
+              <p>
+                {number(overdue.length)} مهام متأخرة · {number(pending.length)}{" "}
+                اقتراحات للمراجعة · بيانات تجريبية
+              </p>
+              <button
+                className="quiet-button"
+                onClick={() => {
+                  go("today");
+                  setNotice(false);
+                }}
+              >
+                افتح اليوم
+              </button>
+            </div>
+          )}
           <div className="page-heading">
             <div>
               <span className="eyebrow">
@@ -141,21 +176,33 @@ export default function Dashboard() {
                   ? "الأحد، ١١ أكتوبر · يوم تجريبي"
                   : screen === "spaces"
                     ? "العمل / التعلّم / الحياة الشخصية"
-                    : "فكّر بحرية، وقرّر بوضوح"}
+                    : screen === "calendar"
+                      ? "أسبوع واضح، مساحة للتوازن"
+                      : screen === "settings"
+                        ? "مساحتك، على طريقتك"
+                        : "فكّر بحرية، وقرّر بوضوح"}
               </span>
               <h1>
                 {screen === "today"
-                  ? "اليوم، على مهل."
+                  ? "صباح الخير، إلهام"
                   : screen === "spaces"
                     ? "مساحة لكل ما يهمك."
-                    : "مساعدك في مدار."}
+                    : screen === "calendar"
+                      ? "وقتك، في مكان واحد."
+                      : screen === "settings"
+                        ? "إعدادات مدار."
+                        : "مساعدك في مدار."}
               </h1>
               <p>
                 {screen === "today"
                   ? "ثلاث أولويات. مساحة للتقدّم، ومساحة للحياة."
                   : screen === "spaces"
                     ? "ثماني مساحات مترابطة، دون تكرار أو تشتّت."
-                    : "اقتراحات للمراجعة، لا قرارات بالنيابة عنك."}
+                    : screen === "calendar"
+                      ? "مواعيد ومهام مسجلة، دون التزامات مختلقة."
+                      : screen === "settings"
+                        ? "حساب واحد. تجربة بسيطة. خصوصية واضحة."
+                        : "اقتراحات للمراجعة، لا قرارات بالنيابة عنك."}
               </p>
             </div>
             {screen === "today" && (
@@ -188,6 +235,64 @@ export default function Dashboard() {
           )}
           {screen === "today" && (
             <>
+              <div className="hero-actions">
+                <button
+                  className="button primary"
+                  onClick={() => setCapture(true)}
+                >
+                  <Plus size={17} />
+                  أضف مهمة
+                </button>
+                <button className="button" onClick={() => go("assistant")}>
+                  <Mic size={17} />
+                  سجل صوت
+                </button>
+                <button className="button" onClick={() => go("assistant")}>
+                  <Sparkles size={17} />
+                  خطط يومي
+                </button>
+                <button
+                  className="quiet-button"
+                  onClick={() => go("assistant")}
+                >
+                  افتح المساعد <ArrowLeft size={16} />
+                </button>
+              </div>
+              <div className="metric-grid" aria-label="ملخص اليوم التجريبي">
+                {[
+                  {
+                    label: "مهام اليوم",
+                    value: today.filter((t) => !t.done).length,
+                  },
+                  { label: "المواعيد", value: events.length },
+                  { label: "موافقات معلّقة", value: pending.length },
+                  {
+                    label: "مهام الدراسة",
+                    value: today.filter(
+                      (t) => t.spaceId === "studies" && !t.done,
+                    ).length,
+                  },
+                  {
+                    label: "مهام العادات",
+                    value: today.filter(
+                      (t) => t.spaceId === "health" && !t.done,
+                    ).length,
+                  },
+                ].map((m) => (
+                  <div className="metric" key={m.label}>
+                    <small>{m.label}</small>
+                    <strong>{number(m.value)}</strong>
+                    <span>من البيانات التجريبية</span>
+                  </div>
+                ))}
+              </div>
+              <div className="planning-hint">
+                <Sparkles size={19} />
+                <p>
+                  <strong>مساحة للتركيز</strong> · ابدأ بأولوية واحدة، ثم راجع
+                  موعدك القادم. إرشاد محلي توضيحي، وليس نتيجة ذكاء اصطناعي.
+                </p>
+              </div>
               <div className="today-layout">
                 <div>
                   <Section
@@ -282,20 +387,66 @@ export default function Dashboard() {
                       <ArrowLeft size={15} />
                     </button>
                   </Section>
-                  <div className="capture-inline">
-                    <Plus size={21} />
-                    <div>
-                      <strong>اترك الفكرة هنا.</strong>
-                      <p>مهمة أو ملاحظة، في مكانها المناسب.</p>
-                    </div>
-                    <button
-                      className="icon-button"
-                      aria-label="فتح الالتقاط السريع"
-                      onClick={() => setCapture(true)}
+                  <Section
+                    title="التقاط سريع"
+                    caption="الفكرة الآن، التنظيم بعد قليل"
+                  >
+                    <form
+                      className="quick-capture-form"
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        if (!quickText.trim()) return;
+                        dispatch({
+                          type: "capture",
+                          id: crypto.randomUUID(),
+                          title: quickText,
+                          kind: quickKind,
+                          spaceId: "life",
+                        });
+                        setQuickText("");
+                      }}
                     >
-                      <ArrowLeft size={18} />
-                    </button>
-                  </div>
+                      <label htmlFor="quick-text">ما الذي يدور في بالك؟</label>
+                      <textarea
+                        id="quick-text"
+                        value={quickText}
+                        maxLength={1000}
+                        required
+                        onChange={(e) => setQuickText(e.target.value)}
+                        placeholder="مهمة، فكرة، شيء لا تريد نسيانه…"
+                      />
+                      <div className="quick-chips">
+                        <button
+                          type="button"
+                          aria-pressed={quickKind === "task"}
+                          onClick={() => setQuickKind("task")}
+                        >
+                          مهمة
+                        </button>
+                        <button
+                          type="button"
+                          aria-pressed={quickKind === "note"}
+                          onClick={() => setQuickKind("note")}
+                        >
+                          ملاحظة
+                        </button>
+                        <small>الحياة الشخصية · مؤقت</small>
+                      </div>
+                      <div className="settings-line">
+                        <button className="button primary" type="submit">
+                          أضف إلى الديمو
+                        </button>
+                        <button
+                          type="button"
+                          className="icon-button"
+                          aria-label="التقاط صوت عبر المساعد"
+                          onClick={() => go("assistant")}
+                        >
+                          <Mic size={19} />
+                        </button>
+                      </div>
+                    </form>
+                  </Section>
                 </div>
               </div>
               {state.notes.length > 0 && (
@@ -330,6 +481,10 @@ export default function Dashboard() {
               onCapture={() => setCapture(true)}
             />
           </div>
+          {screen === "calendar" && (
+            <Calendar state={state} onCapture={() => setCapture(true)} />
+          )}
+          {screen === "settings" && <Settings />}
           <div hidden={screen !== "assistant"}>
             <Assistant
               state={state}
@@ -347,19 +502,7 @@ export default function Dashboard() {
           </footer>
         </main>
       </div>
-      <nav className="mobile-nav" aria-label="التنقل على الجوال">
-        {navigation.map((n) => (
-          <button
-            key={n.id}
-            className={screen === n.id ? "active" : ""}
-            aria-current={screen === n.id ? "page" : undefined}
-            onClick={() => go(n.id)}
-          >
-            <n.icon size={21} />
-            <span>{n.label}</span>
-          </button>
-        ))}
-      </nav>
+      <WorkspaceNavigation current={screen} onNavigate={go} mobile />
       <button
         className="mobile-capture icon-button"
         aria-label="التقاط سريع"

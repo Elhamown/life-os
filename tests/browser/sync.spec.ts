@@ -88,7 +88,7 @@ test("site requires actual persisted authentication for dashboard, discovery, sy
     const r = await context.request.get("http://localhost:3100/?_rsc=fixture", {
       headers: { RSC: "1" },
     });
-    expect((await r.text()).includes("اليوم، على مهل.")).toBe(false);
+    expect((await r.text()).includes("صباح الخير، إلهام")).toBe(false);
     expect(
       (
         await context.request.get("http://localhost:3100/api/sync/status")

@@ -25,7 +25,7 @@ test("one real owner login/logout protects all pages and private API data", asyn
   await page.getByRole("button", { name: "دخول آمن" }).click();
   await expect(page).toHaveURL("http://localhost:3100/");
   await expect(
-    page.getByRole("heading", { name: "اليوم، على مهل." }),
+    page.getByRole("heading", { name: "صباح الخير، إلهام" }),
   ).toBeVisible();
   const cookies = await context.cookies();
   const owner = cookies.find((c) => c.name === "madar-private-local");
@@ -104,13 +104,20 @@ test("loss of the owner session clears a previously rendered private dashboard",
   await page.getByLabel("كلمة مرور المالك").fill("fixture-owner-password");
   await page.getByRole("button", { name: "دخول آمن" }).click();
   await expect(
-    page.getByRole("heading", { name: "اليوم، على مهل." }),
+    page.getByRole("heading", { name: "صباح الخير، إلهام" }),
   ).toBeVisible();
   await context.clearCookies();
-  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+  // A concurrent session check can redirect before the synthetic focus completes.
+  // Preserve the actual security assertions below; only accept navigation teardown.
+  await page
+    .evaluate(() => window.dispatchEvent(new Event("focus")))
+    .catch((error) => {
+      if (!String(error).includes("Execution context was destroyed"))
+        throw error;
+    });
   await expect(page).toHaveURL(/\/login\?next=/);
   await expect(
-    page.getByRole("heading", { name: "اليوم، على مهل." }),
+    page.getByRole("heading", { name: "صباح الخير، إلهام" }),
   ).toHaveCount(0);
 });
 test("switching AI area clears prior private drafts, context, text and consent", async ({
