@@ -1,5 +1,6 @@
 "use client";
-import { useReducer, useState } from "react";
+import { useEffect, useReducer, useState } from "react";
+import { readWorkspace, saveWorkspace } from "./lib/workspace-storage";
 import {
   ArrowLeft,
   CalendarDays,
@@ -34,6 +35,15 @@ const navigation = [
 ] as const;
 export default function Dashboard() {
   const [state, dispatch] = useReducer(reducer, initialState);
+  const [workspaceReady, setWorkspaceReady] = useState(false);
+  const [storageError, setStorageError] = useState(false);
+  useEffect(() => {
+    dispatch({ type: "hydrate", state: readWorkspace() });
+    setWorkspaceReady(true);
+  }, []);
+  useEffect(() => {
+    if (workspaceReady) setStorageError(!saveWorkspace(state));
+  }, [state, workspaceReady]);
   const [screen, setScreen] = useState<Screen>("today");
   const [selected, setSelected] = useState<SpaceId | null>(null);
   const [capture, setCapture] = useState(false);
@@ -134,6 +144,7 @@ export default function Dashboard() {
           </div>
         </header>
         <main id="main">
+          {storageError && <p role="alert">تعذّر حفظ التغييرات على هذا الجهاز. يرجى التحقق من مساحة تخزين المتصفح.</p>}
           <div className="page-heading">
             <div>
               <span className="eyebrow">
