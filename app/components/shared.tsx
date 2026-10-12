@@ -40,10 +40,12 @@ export function TaskRow({
   task,
   dispatch,
   overdue = false,
+  spaceLabel,
 }: {
   task: Task;
   dispatch: (a: Action) => void;
   overdue?: boolean;
+  spaceLabel?: string;
 }) {
   return (
     <div className={`task-row ${task.done ? "completed" : ""}`}>
@@ -57,7 +59,7 @@ export function TaskRow({
       </button>
       <div className="row-copy">
         <span className="task-title">{task.title}</span>
-        <small>{spaceName(task.spaceId)}</small>
+        <small>{spaceLabel ?? spaceName(task.spaceId)}</small>
       </div>
       {overdue ? (
         <button
@@ -87,12 +89,12 @@ export function ProposalCard({
     <article className="proposal">
       <div className="proposal-label">
         <Sparkles size={15} />
-        <span>اقتراح تجريبي</span>
+        <span>اقتراح للمراجعة</span>
         <span className="tag">
           {proposal.status === "pending"
             ? "بانتظار موافقتك"
             : proposal.status === "approved"
-              ? "أُضيف للديمو"
+              ? "أُضيف للمهام"
               : "مرفوض"}
         </span>
       </div>

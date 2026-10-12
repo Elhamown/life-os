@@ -13,6 +13,7 @@ export function AiProposalCard({
   proposal,
   onDecide,
   disabled,
+  onAdd,
 }: {
   proposal: AiProposal;
   onDecide: (
@@ -21,6 +22,7 @@ export function AiProposalCard({
     decision: "approved" | "rejected",
   ) => Promise<void>;
   disabled: boolean;
+  onAdd?: (proposal: AiProposal) => void;
 }) {
   const [edit, setEdit] = useState(false);
   const [value, setValue] = useState<AiFields>(() => {
@@ -62,6 +64,15 @@ export function AiProposalCard({
           ? `مرتبط بـ ${value.contextIds.length} سجل مؤكد`
           : "مقترح جديد؛ ليس التزامًا قائمًا"}
       </small>
+      {proposal.status === "approved" && onAdd && (
+        <button
+          className="button"
+          disabled={disabled}
+          onClick={() => onAdd(proposal)}
+        >
+          إضافة العنوان والموعد إلى مساحة العمل
+        </button>
+      )}
       {proposal.status === "pending" ? (
         <>
           {edit && (

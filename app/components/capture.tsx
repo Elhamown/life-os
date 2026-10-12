@@ -1,15 +1,22 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { Plus, X } from "lucide-react";
-import { type Action, type SpaceId, spaces } from "../lib/model";
+import {
+  type Action,
+  type SpaceId,
+  type CustomSpace,
+  spaces,
+} from "../lib/model";
 export default function Capture({
   dispatch,
   onClose,
   defaultSpace,
+  customSpaces = [],
 }: {
   dispatch: (a: Action) => void;
   onClose: () => void;
   defaultSpace: SpaceId;
+  customSpaces?: CustomSpace[];
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const [title, setTitle] = useState("");
@@ -88,7 +95,13 @@ export default function Capture({
               value={spaceId}
               onChange={(e) => setSpaceId(e.target.value as SpaceId)}
             >
-              {spaces.map((s) => (
+              {[
+                ...spaces,
+                ...customSpaces.map((s) => ({
+                  id: s.id as SpaceId,
+                  name: s.title,
+                })),
+              ].map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.name}
                 </option>
@@ -97,7 +110,8 @@ export default function Capture({
           </label>
         </div>
         <p className="helper">
-          تُضاف محليًا في هذه الجلسة فقط. لا تُرسل إلى Notion.
+          يظهر تأكيد الحفظ في أعلى الصفحة عند وصول التغييرات إلى قاعدة البيانات.
+          لا تُرسل إلى Notion.
         </p>
         <button
           type="submit"
@@ -105,7 +119,7 @@ export default function Capture({
           disabled={!title.trim()}
         >
           <Plus size={17} />
-          إضافة إلى الديمو
+          حفظ المهمة أو الملاحظة
         </button>
       </form>
     </dialog>

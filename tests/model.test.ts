@@ -2,8 +2,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   initialState,
+  todayDate,
   reducer,
-  demoDate,
   spaces,
   domains,
 } from "../app/lib/model.ts";
@@ -27,6 +27,7 @@ test("capture trims content and rejects whitespace and duplicate identifiers", (
   assert.strictEqual(
     reducer(initialState, { ...action, title: "   " }),
     initialState,
+    todayDate,
   );
 });
 test("converting a note moves its identity instead of duplicating it", () => {
@@ -85,9 +86,10 @@ test("approval uses the edited title, space and date", () => {
 test("reschedule updates existing task and removes overdue classification", () => {
   const next = reducer(initialState, { type: "reschedule", id: "t5" });
   assert.equal(next.tasks.length, initialState.tasks.length);
-  assert.equal(next.tasks.find((t) => t.id === "t5")?.date, demoDate);
+  assert.equal(next.tasks.find((t) => t.id === "t5")?.date, todayDate());
   assert.equal(
-    next.tasks.filter((t) => !t.done && t.date < demoDate).length,
+    next.tasks.filter((t) => t.id === "t5" && !t.done && t.date < todayDate())
+      .length,
     0,
   );
 });

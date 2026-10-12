@@ -11,6 +11,8 @@ export interface QueryExecutor {
   ): Promise<T[]>;
 }
 export interface Store {
+  readWorkspace?(): Promise<{ revision: number; data: unknown } | null>;
+  saveWorkspace?(revision: number, data: unknown): Promise<boolean>;
   get<T>(key: string): Promise<T | null>;
   put(key: string, value: unknown): Promise<void>;
   putUnderLease(key: string, value: unknown, leaseId: string): Promise<boolean>;
@@ -39,6 +41,37 @@ export class SqlStore implements Store {
     private db: QueryExecutor,
     private key: string,
   ) {}
+  async readWorkspace() {
+    const rows = await this.db.query<{ revision: number; ciphertext: string }>(
+      "SELECT revision,ciphertext FROM madar_workspace WHERE owner='owner'",
+    );
+    return rows[0]
+      ? {
+          revision: rows[0].revision,
+          data: unseal<unknown>(
+            rows[0].ciphertext,
+            this.key,
+            "workspace:owner",
+          ),
+        }
+      : null;
+  }
+  async saveWorkspace(revision: number, data: unknown) {
+    const rows = await this.db.query(
+      "INSERT INTO madar_workspace(owner,revision,ciphertext) SELECT 'owner',1,$2 WHERE $1::integer=0 ON CONFLICT(owner) DO NOTHING RETURNING revision",
+      [revision, seal(data, this.key, "workspace:owner")],
+    );
+    if (rows.length) return true;
+    if (revision === 0) return false;
+    return (
+      (
+        await this.db.query(
+          "UPDATE madar_workspace SET revision=revision+1,ciphertext=$2,updated_at=NOW() WHERE owner='owner' AND revision=$1 RETURNING revision",
+          [revision, seal(data, this.key, "workspace:owner")],
+        )
+      ).length === 1
+    );
+  }
   async get<T>(name: string) {
     const rows = await this.db.query<{ ciphertext: string }>(
       "SELECT ciphertext FROM madar_private_state WHERE name=$1",
@@ -149,7 +182,7 @@ let database: ReturnType<typeof postgres> | undefined;
 export function productionStore(url: string, key: string): Store {
   // DATABASE_URL uses the provider's verified TLS configuration; never disable certificate verification.
   database ??= postgres(url, {
-    max: 2,
+    max: 1, // Single-owner workload: serialize pool access and limit serverless connections.
     connect_timeout: 5,
     idle_timeout: 10,
     prepare: false,

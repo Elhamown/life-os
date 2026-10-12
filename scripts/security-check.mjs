@@ -19,6 +19,9 @@ const privatePages = new Map([
   ["app/sync/page.tsx", "/sync"],
 ]);
 const apiRoutes = new Set([
+  "app/api/workspace/route.ts",
+  "app/api/notion-records/route.ts",
+  "app/api/conversation/route.ts",
   "app/api/private/[action]/route.ts",
   "app/api/notion/[action]/route.ts",
   "app/api/ai/[action]/route.ts",
