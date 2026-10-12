@@ -16,12 +16,12 @@ test("private output rejects a home directory within the repository before gener
   );
   assert.throws(
     () => assertOutsideRepository("/Users/test-owner", "/Users/test-owner"),
-    /outside/,
+    /OUTPUT_IN_REPOSITORY/,
   );
   assert.throws(
     () =>
       assertOutsideRepository("/Users/test-owner/private", "/Users/test-owner"),
-    /outside/,
+    /OUTPUT_IN_REPOSITORY/,
   );
   assert.doesNotThrow(() =>
     assertOutsideRepository("/Users/test-owner-other", "/Users/test-owner"),
@@ -71,7 +71,7 @@ test("setup rejects short and oversized passwords before requesting randomness",
         createSecretValues(value, () => {
           throw new Error("Randomness must not be requested");
         }),
-      /16–128/,
+      /PASSWORD_POLICY/,
     );
 });
 

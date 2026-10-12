@@ -20,7 +20,7 @@ scrypt$32768$8$1$<salt:64 hex characters>$<derived key:128 hex characters>
 ## تشغيل الأداة على جهازك فقط
 
 1. استخدم جهازك الموثوق وطرفية محلية خاصة غير مسجلة، دون مشاركة شاشة أو session recording. لا تشغّلها داخل Codex أو GitHub Actions أو طرفية سحابية أو خدمة عامة.
-2. يلزم Node.js 24. لا تحتاج الأداة `npm install` أو شبكة. على macOS/Linux استخدم طرفيتك المحلية. على Windows استخدم WSL محليًا ومسار home الخاص بلينكس؛ الأداة ترفض Windows الأصلي لأن Unix modes لا تضمن Windows ACL.
+2. أداة الإعداد متوافقة مع Node.js 22.23.1 و24. المشروع وتكوين Vercel ما زالا يستخدمان Node.js 24؛ لا يلزم تغييرهما لتشغيل الأداة محليًا. لا تحتاج الأداة `npm install` أو شبكة. على macOS/Linux استخدم طرفيتك المحلية. على Windows استخدم WSL محليًا ومسار home الخاص بلينكس؛ الأداة ترفض Windows الأصلي لأن Unix modes لا تضمن Windows ACL.
 3. من نسخة المستودع التي تحتوي الأداة شغّل:
 
    ```sh
@@ -51,13 +51,13 @@ scrypt$32768$8$1$<salt:64 hex characters>$<derived key:128 hex characters>
 من Terminal محلية، في مجلد عادي مثل `~/Projects` خارج iCloud Drive، احصل على الفرع:
 
 ```sh
-git clone --branch feature/private-owner-setup --single-branch https://github.com/Elhamown/life-os.git
+git clone --branch feature/fix-owner-terminal-input --single-branch https://github.com/Elhamown/life-os.git
 cd life-os
 node --version
 node scripts/setup-owner-secrets.mjs
 ```
 
-تأكد أن إصدار Node يبدأ بـ `v24.`. أمر Git ينقل الكود فقط؛ نفّذه قبل إدخال أي كلمة مرور. لا حاجة لتشغيل الموقع أو `npm install` أو نشره. إذا لديك نسخة بالفعل استخدم `git fetch origin` ثم `git switch feature/private-owner-setup` مع الحفاظ على أي تعديلات محلية.
+تأكد أن إصدار Node هو `v22.23.1` أو يبدأ بـ `v24.`. أمر Git ينقل الكود فقط؛ نفّذه قبل إدخال أي كلمة مرور. لا حاجة لتشغيل الموقع أو `npm install` أو نشره. إذا لديك نسخة بالفعل اتبع أوامر تحديث الإصلاح أدناه مع الحفاظ على أي تعديلات محلية.
 
 ## نقل القيم دون عرضها
 
@@ -66,13 +66,13 @@ node scripts/setup-owner-secrets.mjs
 macOS:
 
 ```sh
-pbcopy < /absolute/private/directory/MADAR_OWNER_PASSWORD_HASH
+pbcopy < "/absolute/private/directory/MADAR_OWNER_PASSWORD_HASH"
 ```
 
 Linux مع Wayland (إذا كانت أداة wl-copy مثبتة):
 
 ```sh
-wl-copy < /absolute/private/directory/MADAR_OWNER_PASSWORD_HASH
+wl-copy < "/absolute/private/directory/MADAR_OWNER_PASSWORD_HASH"
 ```
 
 غيّر اسم الملف إلى `MADAR_SESSION_SECRET` ثم `MADAR_STORE_ENCRYPTION_KEY` لكل عملية نسخ. لا تستخدم مدير حافظة يزامن القيم سحابيًا؛ امسح الحافظة بعد الانتهاء. يمكنك نقلها إلى مدير أسرار محلي موثوق دون عرض القيم. لا تضع الملفات في Git أو مجلد تتم مزامنته إلى خدمة عامة.
@@ -94,3 +94,61 @@ wl-copy < /absolute/private/directory/MADAR_OWNER_PASSWORD_HASH
 نافذة خاصة → العنوان المطابق للأصل → `/login` → كلمة مرورك الأصلية → الوصول إلى لوحة التحكم → تسجيل الخروج → التأكد من طلب الدخول مجددًا. لا تشارك HAR أو bodies الطلبات أو قيم Cookies؛ قد تتضمن كلمة المرور أو الجلسة. لا تحتاج أي تكامل Notion لهذا الاختبار.
 
 اختبارات الأداة تستخدم كلمة مرور اصطناعية وعشوائية **ثابتة محقونة للاختبار فقط**؛ تتحقق من مطابقة مدقق المصادقة الحقيقي والترميزات ورفض الإدخال غير التفاعلي، دون إنشاء أسرار حقيقية أو تشغيل تكاملات.
+
+## إصلاح قارئ الطرفية والأخطاء الآمنة
+
+وجدنا عيوبًا قابلة لإعادة الإنتاج في القارئ السابق، دون كلمة مرور حقيقية:
+
+- كل طلب إدخال كان يُغلق raw mode ويفصل listener ثم يعود في الطلب التالي. هذا أتاح نافذة echo، وأضاع بقية دفعة الإدخال بعد أول Enter.
+- إذا وصلت `CR` ثم `LF` منفصلة، فسّرت `LF` المتأخرة على أنها تأكيد فارغ؛ قد يظهر اختلاف مصطنع حتى لو أدخل المستخدم كلمة المرور نفسها.
+- علامات bracketed paste التي تدعمها macOS Terminal (`ESC[200~` و`ESC[201~`) كانت مرفوضة كمحارف تحكم.
+- الرسالة العامة أخفت الفرق بين هذه الحالات، وكلمة مرور قصيرة، واختلاف فعلي، وفشل إنشاء الملفات. لا يمكن معرفة أيها حدث على جهازك من الرسالة القديمة وحدها.
+
+الإصلاح يستخدم جلسة raw واحدة للطلبين، يحتفظ ببقية الدفعات، يعالج CRLF عبر حدود الدفعات، ويقبل delimiters اللصق دون إدخالها في كلمة المرور. لا تُقصّ المسافات ولا تُطبّع كلمة المرور. اللصق متعدد الأسطر يُرفض برسالة واضحة؛ انسخ سطر كلمة المرور وحده ثم اضغط Enter. Backspace وDelete يحذفان محرف Unicode كاملًا، وCtrl+C يلغي. تُعاد حالة الطرفية عند النجاح أو الفشل، دون طباعة الإدخال.
+
+الأخطاء تعرض رمزًا عامًا فقط، دون password/hash/keys أو الاستثناء الأصلي:
+
+| الرمز | الإجراء الآمن |
+|---|---|
+| `TERMINAL_REQUIRED` | Terminal محلية، دون pipes أو إعادة توجيه أو وسائط |
+| `PASSWORD_POLICY` / `PASSWORD_TOO_LONG` | 16–128 وحدة UTF-16 وبحد أقصى 512 بايت UTF-8 |
+| `PASSWORD_MISMATCH` | التأكيد مختلف فعلًا؛ أعد إدخاله محليًا |
+| `INPUT_MULTILINE` | انسخ كلمة المرور وحدها دون newline؛ ثم Enter |
+| `INPUT_CONTROL` | استخدم الكتابة أو اللصق العادي وBackspace؛ لا مفاتيح الأسهم |
+| `INPUT_CANCELLED` / `INPUT_EOF` | أُلغي الإدخال أو انتهى؛ أعد الأمر عند الاستعداد |
+| `OUTPUT_LOCATION` | تحقق من home ومسار نسخة الأداة |
+| `OUTPUT_IN_REPOSITORY` | ضع المستودع في `~/Projects/life-os`، لا تجعل home نفسه المستودع |
+| `OUTPUT_WRITE` | تحقق من صلاحية الكتابة في home والمساحة الحرة؛ لا تستخدم sudo |
+| `TERMINAL_IO` / `CRYPTO_FAILED` / `SETUP_FAILED` | أبلغ عن الرمز وإصدار Node فقط؛ لا تشارك قيمًا أو ملفات أسرار |
+
+إذا تعذّر إنشاء الملفات، تُزال فقط الملفات الجزئية داخل المجلد الجديد لهذه المحاولة، ولا تُحذف ملفات سابقة. تبقى التغطية والمسار والتشفير وصيغة scrypt كما كانت؛ لم يتغير كود المصادقة.
+
+### تحديث نسخة Mac الحالية وإعادة التشغيل
+
+من داخل مستودعك المحلي، نفّذ `git status --short` أولًا. إذا ظهرت تعديلات محلية، احتفظ بها قبل تبديل الفرع؛ لا تستخدم reset أو force.
+
+الأوامر التالية لأول انتقال إلى فرع الإصلاح. تعمل أيضًا إذا نُسخ المستودع سابقًا بـ `--single-branch`:
+
+```sh
+git status --short
+git fetch origin feature/fix-owner-terminal-input
+git switch -c feature/fix-owner-terminal-input FETCH_HEAD
+node --version
+node scripts/setup-owner-secrets.mjs
+```
+
+إذا كان هذا الفرع المحلي موجودًا بالفعل، استخدم `git switch feature/fix-owner-terminal-input` بدل أمر إنشاء الفرع، وتحقق أن نسختك تحتوي الإصلاح قبل التشغيل. لا يلزم `npm install` لتشغيل الأداة نفسها.
+
+مكان الحفظ لم يتغير: `/Users/<اسمك>/.madar-owner-secrets-<لاحقة عشوائية>/`، بصلاحيات مجلد `700` وملفات `600`. لا حاجة إلى تغيير كلمة مرورك لمجرد تحديث الأداة، ولا تستبدل مفتاح تشفير قاعدة قائمة بالمفتاح الجديد دون خطة إعادة تشفير.
+
+### التحقق الآلي
+
+نجحت اختبارات الأداة على Node.js 22.23.1 و24.19.0. تشمل typing، plain/bracketed paste، CRLF مقسمة ومجمعة، Backspace، Unicode وUTF-8 المقسمة، confirmation، repeated prompts، إلغاء الإدخال، الرموز الآمنة، إنشاء ملفات خاصة خارج المستودع ورفض symlink إلى داخله. تسعة سيناريوهات إضافية ضمن اختبار PTY حقيقي تستخدم عشوائية ثابتة محقونة للاختبار فقط. الاختبار على Linux PTY يحاكي بايتات macOS Terminal؛ لم يتوفر جهاز macOS فعلي هنا، ولا نزعم اختبار Darwin أصليًا.
+
+لتشغيل الفحوص فقط في بيئة تطوير مثبتة الاعتماديات:
+
+```sh
+node --conditions=react-server --import tsx --test tests/owner-setup.test.ts tests/owner-terminal.test.ts
+```
+
+اختبار PTY يستخدم Python 3 القياسية على POSIX؛ ليست مطلوبة لتشغيل أداة الإعداد. لا تُشغّل أداة الإنتاج بأسرارك داخل CI أو أي طرفية سحابية.
